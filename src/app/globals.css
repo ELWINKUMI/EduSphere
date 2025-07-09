@@ -1,0 +1,92 @@
+/* The following @tailwind directives require Tailwind CSS/PostCSS processing. 
+   If you see "Unknown at rule @tailwind", ensure your build pipeline includes Tailwind CSS. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Input styling to ensure text is visible - fallback only */
+input:not([class*="text-"]), textarea:not([class*="text-"]), select:not([class*="text-"]) {
+  color: #1f2937;
+}
+
+input:not([class*="bg-"]), textarea:not([class*="bg-"]), select:not([class*="bg-"]) {
+  background-color: white;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Focus states - only apply if no specific text color classes are present */
+input:focus:not([class*="text-"]), textarea:focus:not([class*="text-"]), select:focus:not([class*="text-"]) {
+  outline: none;
+  color: #1f2937;
+}
+
+/* Ensure proper text rendering */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Quiz timer styles */
+.timer-warning {
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
