@@ -14,6 +14,10 @@ export interface ICourse extends Document {
   enrollmentCode: string // Unique course code for enrollment
   maxStudents: number // Maximum number of students
   isActive: boolean
+  // Grading scheme fields
+  assignmentWeight?: number // e.g., 70 (for 70%)
+  quizWeight?: number // e.g., 30 (for 30%)
+  gradeRanges?: { min: number; max: number; grade: string }[] // e.g., [{min:80,max:100,grade:'A'}]
   createdAt: Date
   updatedAt: Date
 }
@@ -45,6 +49,35 @@ const CourseSchema = new Schema<ICourse>({
     required: true
   },
   students: [{
+  // Grading scheme fields
+  assignmentWeight: {
+    type: Number,
+    default: 70, // Default 70%
+    min: 0,
+    max: 100
+  },
+  quizWeight: {
+    type: Number,
+    default: 30, // Default 30%
+    min: 0,
+    max: 100
+  },
+  gradeRanges: {
+    type: [
+      {
+        min: { type: Number, required: true },
+        max: { type: Number, required: true },
+        grade: { type: String, required: true }
+      }
+    ],
+    default: [
+      { min: 80, max: 100, grade: 'A' },
+      { min: 70, max: 79, grade: 'B' },
+      { min: 60, max: 69, grade: 'C' },
+      { min: 50, max: 59, grade: 'D' },
+      { min: 0, max: 49, grade: 'F' }
+    ]
+  },
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],

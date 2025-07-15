@@ -1,4 +1,6 @@
+
 import mongoose, { Schema, Document } from 'mongoose'
+import Quiz from './Quiz'
 
 export interface IQuizSubmission extends Document {
   quiz: mongoose.Types.ObjectId

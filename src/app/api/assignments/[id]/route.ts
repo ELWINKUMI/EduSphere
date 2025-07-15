@@ -41,46 +41,39 @@ export async function GET(
 
     // Check if student is enrolled in the course
     const courseId = (assignment as any).course?._id || (assignment as any).course
-    console.log('Assignment API - Course check:', {
-      assignmentId: id,
-      courseId,
-      userId: user._id,
-      userIdType: typeof user._id,
-      assignmentCourse: (assignment as any).course
-    })
-    
     const course = await Course.findById(courseId)
-    console.log('Assignment API - Course found:', {
-      courseFound: !!course,
-      courseStudents: course?.students?.length || 0,
-      courseStudentsIds: course?.students?.map((s: unknown) => s?.toString()),
-      userIdString: user._id.toString(),
-      isEnrolled: course?.students?.some((studentId: any) => studentId.toString() === user._id.toString())
-    })
     
     if (
       !course ||
       !course.students.some((studentId: unknown) => (studentId as any).toString() === user._id.toString())
     ) {
-      console.log('Assignment API - Access denied:', {
-        noCourse: !course,
-        notEnrolled: course && !course.students.some((studentId: any) => studentId.toString() === user._id.toString()),
-        courseId,
-        userId: user._id
-      })
       return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 })
     }
 
-    // Find student's submission for this assignment
-    const submission = await Submission.findOne({
+    // Get only the latest submission for this assignment/user (not all attempts)
+    const latestSubmission = await Submission.findOne({
       assignment: id,
       student: user._id
-    }).lean()
+    }).sort({ submittedAt: -1 }).lean()
+
+    // Make sure attempts is always included, defaulting to 1 if not set
+    const assignmentWithAttempts = !Array.isArray(assignment)
+      ? { ...assignment, attempts: (assignment as any).attempts ?? 1 }
+      : assignment
+
+    // Include attemptCount in the submission if available, default to 0 if not submitted yet
+    let submissionWithAttempts = null;
+    if (latestSubmission) {
+      submissionWithAttempts = {
+        ...latestSubmission,
+        attemptCount: (latestSubmission as any).attemptCount ?? 1
+      }
+    }
 
     return NextResponse.json({
       success: true,
-      assignment,
-      submission
+      assignment: assignmentWithAttempts,
+      submission: submissionWithAttempts // return latest submission with attemptCount
     })
 
   } catch (error) {
@@ -123,7 +116,12 @@ export async function PUT(
     const maxPoints = parseInt(formData.get('maxPoints') as string)
     const submissionType = formData.get('submissionType') as string
     const existingAttachmentsStr = formData.get('existingAttachments') as string
-    
+    // If attempts is 0 or 999, it means unlimited attempts
+    const attemptsRaw = formData.get('attempts') as string
+    const attempts = attemptsRaw === "0" || attemptsRaw === "999"
+      ? 999
+      : parseInt(attemptsRaw) || 1
+
     let existingAttachments: string[] = []
     try {
       existingAttachments = JSON.parse(existingAttachmentsStr || '[]')
@@ -171,7 +169,7 @@ export async function PUT(
       }
     }
 
-    // Update assignment
+    // Update assignment - include attempts!
     const updatedAssignment = await Assignment.findByIdAndUpdate(
       id,
       {
@@ -180,7 +178,8 @@ export async function PUT(
         dueDate: new Date(dueDate),
         maxPoints,
         submissionType,
-        attachments: [...existingAttachments, ...newFiles]
+        attachments: [...existingAttachments, ...newFiles],
+        attempts // <-- update attempts property!
       },
       { new: true }
     ).populate('course', 'title subject gradeLevel')

@@ -42,35 +42,43 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get courses for student's grade level
-    const enrolledCourses = await Course.countDocuments({ 
-      gradeLevel: student.gradeLevel,
-      isActive: true
-    })
 
-    // Get assignments for student's grade level
-    const gradeAssignments = await Assignment.find({ 
-      course: { $in: await Course.find({ gradeLevel: student.gradeLevel }).select('_id') },
-      isActive: true
-    }).select('_id')
+    // Find all courses where this student is enrolled
+    const enrolledCoursesDocs = await Course.find({ students: student._id }).select('_id');
+    const enrolledCourseIds = enrolledCoursesDocs.map(c => c._id);
+    const enrolledCourses = enrolledCourseIds.length;
 
-    const assignmentIds = gradeAssignments.map(a => a._id)
-    
+    // Get assignments for enrolled courses
+    const courseAssignments = await Assignment.find({
+      course: { $in: enrolledCourseIds },
+      isActive: true
+    }).select('_id');
+    const assignmentIds = courseAssignments.map(a => a._id);
+
     const submittedAssignments = await Submission.find({
       student: new mongoose.Types.ObjectId(student._id),
       assignment: { $in: assignmentIds }
-    }).select('assignment')
+    }).select('assignment');
+    const submittedAssignmentIds = submittedAssignments.map(s => s.assignment.toString());
+    const pendingAssignments = assignmentIds.length - submittedAssignmentIds.length;
 
-    const submittedAssignmentIds = submittedAssignments.map(s => s.assignment.toString())
-    const pendingAssignments = assignmentIds.length - submittedAssignmentIds.length
-
-    // Get upcoming quizzes for student's grade level
-    const now = new Date()
-    const upcomingQuizzes = await Quiz.countDocuments({
-      course: { $in: await Course.find({ gradeLevel: student.gradeLevel }).select('_id') },
+    // Get upcoming quizzes for enrolled courses (not yet submitted)
+    const now = new Date();
+    const courseQuizzes = await Quiz.find({
+      course: { $in: enrolledCourseIds },
       endDate: { $gt: now },
       isActive: true
-    })
+    }).select('_id');
+    const quizIds = courseQuizzes.map(q => q._id);
+
+    // Find quiz submissions for this student
+    const QuizSubmission = (await import('@/models/QuizSubmission')).default;
+    const submittedQuizzes = await QuizSubmission.find({
+      student: new mongoose.Types.ObjectId(student._id),
+      quiz: { $in: quizIds }
+    }).select('quiz');
+    const submittedQuizIds = submittedQuizzes.map(s => s.quiz.toString());
+    const upcomingQuizzes = quizIds.filter(qid => !submittedQuizIds.includes(qid.toString())).length;
 
     // Calculate overall grade (percentage-based average)
     const gradedSubmissions = await Submission.find({

@@ -1,7 +1,9 @@
 'use client'
 
+
 import { useState, useEffect } from 'react'
 import { Plus, Eye, EyeOff, Users, Trash2, UserX, BookOpen, AlertTriangle } from 'lucide-react'
+
 import { Input } from '@/components/ui/Input'
 import { ALL_GRADES } from '@/lib/schoolConfig'
 import toast from 'react-hot-toast'
@@ -10,6 +12,7 @@ interface Student {
   _id: string
   name: string
   pin: string
+  userId?: string
   gradeLevel: string
   createdAt: string
 }
@@ -28,6 +31,7 @@ interface EnrolledStudent {
 
 export default function StudentManagement() {
   const [students, setStudents] = useState<Student[]>([])
+  // ...removed generateId state and logic...
   const [enrolledStudents, setEnrolledStudents] = useState<EnrolledStudent[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -40,6 +44,34 @@ export default function StudentManagement() {
     pin: '',
     gradeLevel: ''
   })
+  const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
+
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/students/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ studentId })
+      })
+      if (response.ok) {
+        toast.success('Student deleted successfully!')
+        fetchStudents()
+        setStudentToDelete(null)
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to delete student')
+      }
+    } catch (error) {
+      toast.error('Error deleting student')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     fetchStudents()
@@ -57,6 +89,7 @@ export default function StudentManagement() {
 
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched students:', data.students)
         setStudents(data.students)
       } else {
         toast.error('Failed to fetch students')
@@ -141,15 +174,12 @@ export default function StudentManagement() {
   }
 
   const copyCredentials = async (student: Student) => {
-    const credentials = `Name: ${student.name}\nPIN: ${student.pin}`
-    
+    const credentials = `User ID: ${student.userId || '[Not generated]'}\nPIN: ${student.pin}\nName: ${student.name}`
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(credentials)
         toast.success('Credentials copied to clipboard!')
       } else {
-        // Fallback method for older browsers or non-secure contexts
         const textArea = document.createElement('textarea')
         textArea.value = credentials
         textArea.style.position = 'fixed'
@@ -158,26 +188,48 @@ export default function StudentManagement() {
         document.body.appendChild(textArea)
         textArea.focus()
         textArea.select()
-        
         try {
           document.execCommand('copy')
           toast.success('Credentials copied to clipboard!')
         } catch (err) {
-          // If all methods fail, show the credentials in an alert
           alert(`Student Login Credentials:\n\n${credentials}`)
           toast.success('Credentials displayed - please copy manually')
         }
-        
         document.body.removeChild(textArea)
       }
     } catch (err) {
-      // Final fallback - show in alert
       alert(`Student Login Credentials:\n\n${credentials}`)
       toast.success('Credentials displayed - please copy manually')
     }
   }
 
   const handleRemoveStudent = async (studentId: string, subjectId: string) => {
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      setLoading(true)
+      const token = localStorage.getItem('token')
+      const response = await fetch('/api/students/delete', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ studentId })
+      })
+      if (response.ok) {
+        toast.success('Student deleted successfully!')
+        fetchStudents()
+        setStudentToDelete(null)
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to delete student')
+      }
+    } catch (error) {
+      toast.error('Error deleting student')
+    } finally {
+      setLoading(false)
+    }
+  }
     try {
       setLoading(true)
       const token = localStorage.getItem('token')
@@ -404,6 +456,10 @@ export default function StudentManagement() {
                       </span>
                     </div>
                     <div className="flex items-center space-x-2 mt-1">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">User ID:</span>
+                      <span className="text-sm font-mono text-gray-900 dark:text-white">{student.userId}</span>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
                       <span className="text-sm text-gray-600 dark:text-gray-400">PIN:</span>
                       <span className="text-sm font-mono text-gray-900 dark:text-white">
                         {showPins[student._id] ? student.pin : '•••••'}
@@ -423,7 +479,6 @@ export default function StudentManagement() {
                       Created: {new Date(student.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setSelectedStudent(student)}
@@ -437,7 +492,53 @@ export default function StudentManagement() {
                     >
                       Copy Login Info
                     </button>
+                    <button
+                      onClick={() => setStudentToDelete(student)}
+                      className="px-3 py-1 text-sm bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded hover:bg-red-200 dark:hover:bg-red-800 transition-colors flex items-center"
+                      title="Delete Student"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Delete
+                    </button>
                   </div>
+      {/* Delete Student Confirmation Modal */}
+      {studentToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Delete Student</h3>
+            </div>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to <strong>permanently delete</strong> <strong>{studentToDelete.name}</strong> from the system? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setStudentToDelete(null)}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteStudent(studentToDelete._id)}
+                disabled={loading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete Student
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
                 </div>
               ))}
             </div>
@@ -493,9 +594,16 @@ export default function StudentManagement() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Student Login Credentials</h3>
-            
             <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
               <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">User ID:</label>
+                  <p className="text-lg font-mono text-gray-900 dark:text-white">{selectedStudent.userId || <span className='text-red-500'>Not generated</span>}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">PIN:</label>
+                  <p className="text-lg font-mono text-gray-900 dark:text-white">{selectedStudent.pin}</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Student Name:</label>
                   <p className="text-lg font-mono text-gray-900 dark:text-white">{selectedStudent.name}</p>
@@ -504,23 +612,16 @@ export default function StudentManagement() {
                   <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">Grade Level:</label>
                   <p className="text-lg text-gray-900 dark:text-white">{selectedStudent.gradeLevel}</p>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">PIN:</label>
-                  <p className="text-lg font-mono text-gray-900 dark:text-white">{selectedStudent.pin}</p>
-                </div>
               </div>
             </div>
-
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800 dark:text-blue-300">
                 <strong>Instructions for student:</strong><br />
                 1. Go to the login page<br />
-                2. Enter the name exactly as shown above<br />
-                3. Enter the 5-digit PIN<br />
-                4. Click "Sign In"
+                2. Enter the <strong>User ID</strong> and <strong>PIN</strong> as shown above<br />
+                3. Click "Sign In"
               </p>
             </div>
-            
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setSelectedStudent(null)}

@@ -26,13 +26,13 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             className={`
               w-full px-4 py-3 
               ${isPasswordField ? 'pr-12' : ''}
-              text-gray-900 
-              bg-white 
-              border border-gray-300 
+              text-gray-900 dark:text-gray-100
+              bg-white dark:bg-gray-800
+              border border-gray-300 dark:border-gray-700
               rounded-lg 
-              placeholder-gray-400
+              placeholder-gray-400 dark:placeholder-gray-500
               focus:ring-2 focus:ring-blue-500 focus:border-transparent
-              disabled:bg-gray-50 disabled:text-gray-500
+              disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-500 dark:disabled:text-gray-500
               ${error ? 'border-red-500 focus:ring-red-500' : ''}
               ${className}
             `}

@@ -157,7 +157,26 @@ export default function TeacherQuizzesPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {quizzes.map((quiz) => {
-              const status = getQuizStatus(quiz)
+              const status = getQuizStatus(quiz);
+              const showDelete = !quiz.course || !quiz.course.subject;
+              const handleDelete = async () => {
+                if (!window.confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) return;
+                try {
+                  const token = localStorage.getItem('token');
+                  const res = await fetch(`/api/quizzes/${quiz._id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                  });
+                  if (res.ok) {
+                    toast.success('Quiz deleted');
+                    setQuizzes(qs => qs.filter(q => q._id !== quiz._id));
+                  } else {
+                    toast.error('Failed to delete quiz');
+                  }
+                } catch {
+                  toast.error('Failed to delete quiz');
+                }
+              };
               return (
                 <div
                   key={quiz._id}
@@ -170,17 +189,29 @@ export default function TeacherQuizzesPage() {
                         {quiz.title}
                       </h3>
                       <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {quiz.course.subject} - Grade {quiz.course.gradeLevel}
+                        {quiz.course
+                          ? `${quiz.course.subject} - Grade ${quiz.course.gradeLevel}`
+                          : 'No course info'}
                       </p>
                     </div>
-                    <div className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                      status.color === 'green' 
-                        ? 'bg-green-100 text-green-800'
-                        : status.color === 'blue'
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {status.status}
+                    <div className="flex flex-col items-end gap-2">
+                      <div className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        status.color === 'green' 
+                          ? 'bg-green-100 text-green-800'
+                          : status.color === 'blue'
+                          ? 'bg-blue-100 text-blue-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {status.status}
+                      </div>
+                      {showDelete && (
+                        <button
+                          onClick={handleDelete}
+                          className="mt-2 px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
 

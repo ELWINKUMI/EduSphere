@@ -4,7 +4,7 @@ export interface ISubmission extends Document {
   assignment: mongoose.Types.ObjectId
   student: mongoose.Types.ObjectId
   content: string
-  files: string[] // Changed from attachments to files for consistency
+  files: string[]
   submittedAt: Date
   grade?: number
   feedback?: string
@@ -12,6 +12,7 @@ export interface ISubmission extends Document {
   gradedBy?: mongoose.Types.ObjectId
   isGraded: boolean
   isLate: boolean
+  attemptCount: number // <-- Added attemptCount
   createdAt: Date
   updatedAt: Date
 }
@@ -59,6 +60,10 @@ const SubmissionSchema = new Schema<ISubmission>({
   isLate: {
     type: Boolean,
     default: false
+  },
+  attemptCount: {
+    type: Number,
+    default: 1 // <-- Default value for first attempt
   }
 }, {
   timestamps: true

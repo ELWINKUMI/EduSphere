@@ -12,61 +12,81 @@ interface RouteParams {
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
-    await connectDB()
-    
+    await connectDB();
+
+    // Await params if it's a promise (Next.js dynamic route)
+    const awaitedParams = typeof (params as unknown) === 'object' && params && typeof (params as { then?: unknown }).then === 'function' ? await params : params;
+    const subjectId: string = (awaitedParams as { id: string }).id;
+
     // Get token from authorization header
-    const authHeader = request.headers.get('authorization')
+    const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json(
         { error: 'Authorization token required' },
         { status: 401 }
-      )
+      );
     }
 
-    const token = authHeader.substring(7)
-    let decoded: any
-    
+    const token = authHeader.substring(7);
+    let decoded: unknown;
     try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!)
-    } catch (error) {
+      decoded = jwt.verify(token, process.env.JWT_SECRET!);
+    } catch {
       return NextResponse.json(
         { error: 'Invalid token' },
         { status: 401 }
-      )
+      );
     }
 
+    // Type guard for decoded
+    if (!decoded || typeof decoded !== 'object' || !('userId' in decoded)) {
+      return NextResponse.json(
+        { error: 'Invalid token payload' },
+        { status: 401 }
+      );
+    }
+    const userId = (decoded as { userId: string }).userId;
+
     // Verify user is a teacher
-    const teacher = await User.findById(decoded.userId)
+    const teacher = await User.findById(userId);
     if (!teacher || teacher.role !== 'teacher') {
       return NextResponse.json(
         { error: 'Only teachers can update subjects' },
         { status: 403 }
-      )
+      );
     }
 
-    const { title, description, maxStudents, isActive } = await request.json()
+    const { title, description, maxStudents, isActive }: { title?: string; description?: string; maxStudents?: string | number; isActive?: boolean } = await request.json();
+
+    // Validate maxStudents
+    if (maxStudents && (parseInt(maxStudents as string, 10) > 100)) {
+      return NextResponse.json(
+        { error: 'Maximum allowed students is 100.' },
+        { status: 400 }
+      );
+    }
 
     // Find the subject and verify ownership
     const subject = await Course.findOne({
-      _id: params.id,
+      _id: subjectId,
       teacher: teacher._id
-    })
+    });
 
     if (!subject) {
       return NextResponse.json(
         { error: 'Subject not found or you do not have permission to edit it' },
         { status: 404 }
-      )
+      );
     }
 
     // Update the subject
-    subject.title = title || subject.title
-    subject.description = description || subject.description
-    subject.maxStudents = maxStudents ? parseInt(maxStudents) : subject.maxStudents
-    subject.isActive = isActive !== undefined ? isActive : subject.isActive
-    subject.updatedAt = new Date()
+    subject.title = title || subject.title;
+    subject.description = description || subject.description;
+    subject.maxStudents = maxStudents ? parseInt(maxStudents as string, 10) : subject.maxStudents;
+    subject.isActive = isActive !== undefined ? isActive : subject.isActive;
+    subject.updatedAt = new Date();
 
-    await subject.save()
+    await subject.save();
 
     return NextResponse.json({
       message: 'Subject updated successfully',
@@ -81,84 +101,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         isActive: subject.isActive,
         updatedAt: subject.updatedAt
       }
-    })
+    });
 
-  } catch (error) {
-    console.error('Update subject error:', error)
+  } catch (error: unknown) {
+    console.error('Update subject error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
-    )
-  }
-}
-
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
-  try {
-    await connectDB()
-    
-    // Get token from authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Authorization token required' },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.substring(7)
-    let decoded: any
-    
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET!)
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Invalid token' },
-        { status: 401 }
-      )
-    }
-
-    // Verify user is a teacher
-    const teacher = await User.findById(decoded.userId)
-    if (!teacher || teacher.role !== 'teacher') {
-      return NextResponse.json(
-        { error: 'Only teachers can delete subjects' },
-        { status: 403 }
-      )
-    }
-
-    // Find the subject and verify ownership
-    const subject = await Course.findOne({
-      _id: params.id,
-      teacher: teacher._id
-    })
-
-    if (!subject) {
-      return NextResponse.json(
-        { error: 'Subject not found or you do not have permission to delete it' },
-        { status: 404 }
-      )
-    }
-
-    // Check if subject has students enrolled
-    if (subject.students.length > 0) {
-      return NextResponse.json(
-        { error: 'Cannot delete subject with enrolled students. Please remove all students first.' },
-        { status: 400 }
-      )
-    }
-
-    // Delete the subject
-    await Course.findByIdAndDelete(params.id)
-
-    return NextResponse.json({
-      message: 'Subject deleted successfully'
-    })
-
-  } catch (error) {
-    console.error('Delete subject error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    );
   }
 }

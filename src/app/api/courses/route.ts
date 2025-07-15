@@ -57,6 +57,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+
+    // Check if teacher is assigned to this class (gradeLevel)
+    if (!teacher.grades || !teacher.grades.includes(gradeLevel)) {
+      return NextResponse.json(
+        { error: `You are not assigned to ${gradeLevel}. You cannot create a subject for this class.` },
+        { status: 403 }
+      )
+    }
+
     // Validate subject for grade level
     const allowedSubjects = getSubjectsForGrade(gradeLevel)
     if (!allowedSubjects.includes(subject)) {

@@ -143,7 +143,16 @@ export default function StudentCourseDetailPage() {
   } | null>(null)
   const [analyticsData, setAnalyticsData] = useState<any>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'quizzes' | 'resources' | 'announcements' | 'gradebook'>('overview')
+  type TabKey = 'overview' | 'assignments' | 'quizzes' | 'resources' | 'announcements' | 'gradebook';
+  const tabList: { id: TabKey; label: string; icon: React.ElementType }[] = [
+    { id: 'overview', label: 'Overview', icon: BookOpen },
+    { id: 'assignments', label: 'Assignments', icon: FileText },
+    { id: 'quizzes', label: 'Quizzes', icon: Play },
+    { id: 'resources', label: 'Resources', icon: Download },
+    { id: 'announcements', label: 'Announcements', icon: Bell },
+    { id: 'gradebook', label: 'Gradebook', icon: GraduationCap },
+  ];
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
   useEffect(() => {
     // Only fetch if courseId is a valid 24-char hex string
@@ -363,18 +372,18 @@ export default function StudentCourseDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-24 w-24 md:h-32 md:w-32 border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   if (!subject) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
         <div className="text-center">
-          <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Subject Not Found</h2>
+          <BookOpen className="h-12 w-12 md:h-16 md:w-16 text-gray-400 mx-auto mb-4" />
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-2">Subject Not Found</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             The subject you're looking for doesn't exist or you don't have access to it.
           </p>
@@ -394,9 +403,9 @@ export default function StudentCourseDetailPage() {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
-            <div className="flex items-center">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-4 gap-2 sm:gap-0">
+            <div className="flex items-center w-full">
               <Link
                 href="/student/courses"
                 className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mr-4"
@@ -404,41 +413,35 @@ export default function StudentCourseDetailPage() {
                 <ArrowLeft className="h-5 w-5 mr-1" />
                 Back
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{subject.title}</h1>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {subject.subject} • {subject.gradeLevel} • {subject.teacher.name}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <span className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mr-4">{subject.title}</h1>
+              <span className="ml-auto px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-full whitespace-nowrap">
                 {subject.enrolledStudents?.length || 0} / {subject.maxStudents} students
               </span>
             </div>
           </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full mt-1">
+            <p className="text-gray-600 dark:text-gray-400">
+              {subject.subject} • {subject.gradeLevel} • {subject.teacher.name}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-4 md:py-8">
         {/* Navigation Tabs */}
-        <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-8">
-          {[
-            { id: 'overview', label: 'Overview', icon: BookOpen },
-            { id: 'assignments', label: 'Assignments', icon: FileText },
-            { id: 'quizzes', label: 'Quizzes', icon: Play },
-            { id: 'resources', label: 'Resources', icon: Download },
-            { id: 'announcements', label: 'Announcements', icon: Bell },
-            { id: 'gradebook', label: 'Gradebook', icon: GraduationCap }
-          ].map(({ id, label, icon: Icon }) => (
+        <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-lg mb-4 md:mb-8">
+          {tabList.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id as any)}
+              type="button"
+              onClick={() => setActiveTab(id)}
               className={`flex-1 flex items-center justify-center py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                 activeTab === id
                   ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
+              aria-selected={activeTab === id}
+              aria-controls={`tab-panel-${id}`}
             >
               <Icon className="h-4 w-4 mr-2" />
               {label}
@@ -448,16 +451,15 @@ export default function StudentCourseDetailPage() {
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="flex flex-col lg:flex-row gap-3 md:gap-6 items-stretch w-full tab-panel">
             {/* Subject Details */}
-            <div className="lg:col-span-2">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
+            <div className="w-full lg:w-2/3">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-3 sm:p-4 md:p-6 mb-3 lg:mb-0 text-left">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">About This Subject</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   {subject.description || 'No description provided for this subject.'}
                 </p>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 text-sm">
                   <div>
                     <span className="font-medium text-gray-900 dark:text-white">Subject:</span>
                     <p className="text-gray-600 dark:text-gray-400">{subject.subject}</p>
@@ -478,9 +480,9 @@ export default function StudentCourseDetailPage() {
               </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="space-y-6">
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
+            {/* Quick Stats & Announcements */}
+            <div className="w-full lg:w-1/3 flex flex-col gap-3 md:gap-6 items-start mt-3 lg:mt-0">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-3 sm:p-4 md:p-6 text-left w-full">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h3>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -504,7 +506,7 @@ export default function StudentCourseDetailPage() {
 
               {/* Recent Announcements */}
               {announcements.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-3 sm:p-4 md:p-6 text-left w-full">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Announcements</h3>
                   <div className="space-y-3">
                     {announcements.slice(0, 3).map((announcement) => (
@@ -525,7 +527,7 @@ export default function StudentCourseDetailPage() {
         )}
 
         {activeTab === 'assignments' && (
-          <div className="space-y-6">
+          <div className="space-y-2 md:space-y-4 text-left w-full tab-panel">
             {assignments.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -607,7 +609,7 @@ export default function StudentCourseDetailPage() {
         )}
 
         {activeTab === 'quizzes' && (
-          <div className="space-y-6">
+          <div className="space-y-2 md:space-y-4 text-left w-full tab-panel">
             {quizzes.length === 0 ? (
               <div className="text-center py-12">
                 <Play className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -658,7 +660,7 @@ export default function StudentCourseDetailPage() {
         )}
 
         {activeTab === 'resources' && (
-          <div className="space-y-6">
+          <div className="space-y-2 md:space-y-4 text-left w-full tab-panel">
             {resources.length === 0 ? (
               <div className="text-center py-12">
                 <Download className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -668,7 +670,7 @@ export default function StudentCourseDetailPage() {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4 text-left w-full items-start justify-start">
                 {resources.map((resource) => (
                   <div key={resource._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
                     <div className="flex items-start justify-between mb-3">
@@ -699,7 +701,7 @@ export default function StudentCourseDetailPage() {
         )}
 
         {activeTab === 'announcements' && (
-          <div className="space-y-6">
+          <div className="space-y-2 md:space-y-4 text-left w-full tab-panel">
             {announcements.length === 0 ? (
               <div className="text-center py-12">
                 <Bell className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -738,7 +740,7 @@ export default function StudentCourseDetailPage() {
         )}
 
         {activeTab === 'gradebook' && (
-          <div className="space-y-6">
+          <div className="space-y-2 md:space-y-4 text-left w-full mx-auto mt-0 pt-0 tab-panel">
             {grades.length === 0 ? (
               <div className="text-center py-12">
                 <GraduationCap className="h-16 w-16 text-gray-400 mx-auto mb-4" />
@@ -750,7 +752,7 @@ export default function StudentCourseDetailPage() {
             ) : (
               <div>
                 {/* Grade Summary */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-3 sm:p-4 md:p-6 mb-3 md:mb-6 text-left">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Grade Summary</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -775,12 +777,12 @@ export default function StudentCourseDetailPage() {
                 </div>
 
                 {/* Grades List */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden">
-                  <div className="px-6 py-4 border-b dark:border-gray-700">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 overflow-hidden text-left">
+                  <div className="px-2 sm:px-4 md:px-6 py-3 md:py-4 border-b dark:border-gray-700">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Grade Details</h3>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <table className="min-w-[600px] divide-y divide-gray-200 dark:divide-gray-700">
                       <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -873,10 +875,10 @@ export default function StudentCourseDetailPage() {
 
         {/* Analytics Modal */}
         {selectedAnalytics && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50">
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between p-6 border-b dark:border-gray-700">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+              <div className="flex items-center justify-between p-4 md:p-6 border-b dark:border-gray-700">
+                <h3 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white">
                   {selectedAnalytics.title} - Score Distribution
                 </h3>
                 <button
@@ -890,15 +892,15 @@ export default function StudentCourseDetailPage() {
                 </button>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 {analyticsLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8 md:py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
                   </div>
                 ) : analyticsData ? (
-                  <div className="space-y-6">
+                  <div className="space-y-4 md:space-y-6">
                     {/* Overview Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
                       <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                         <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                           {analyticsData.statistics?.totalSubmissions || 0}
@@ -964,7 +966,7 @@ export default function StudentCourseDetailPage() {
                     {/* Your Performance */}
                     <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6">
                       <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Performance</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4">
                         {(() => {
                           const userGrade = grades.find(g => g.itemId === selectedAnalytics.itemId)
                           if (!userGrade) return <div>No grade data available</div>
@@ -1011,5 +1013,5 @@ export default function StudentCourseDetailPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

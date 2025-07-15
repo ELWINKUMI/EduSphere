@@ -1,10 +1,17 @@
 import { config } from 'dotenv'
 import { resolve } from 'path'
 import mongoose from 'mongoose'
-import User from '../models/User'
+import * as UserModule from '../models/User';
+import 'dotenv/config';
+const User = (UserModule as any).default || UserModule;
 
 // Load environment variables
 config({ path: resolve(process.cwd(), '.env.local') })
+
+function generateUserId() {
+  // Generates a random 8-digit string
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
 
 const teachers = [
   {
@@ -42,7 +49,7 @@ const teachers = [
     subjects: ['Core Mathematics', 'Elective Mathematics'],
     grades: ['SHS 1', 'SHS 2', 'SHS 3']
   }
-]
+];
 
 export async function seedTeachers() {
   try {
@@ -58,19 +65,46 @@ export async function seedTeachers() {
     // await User.deleteMany({ role: 'teacher' })
     // console.log('Cleared existing teachers')
 
-    // Add teachers
+    // Add teachers with unique userId
     for (const teacherData of teachers) {
-      const existingTeacher = await User.findOne({ 
-        name: teacherData.name, 
-        pin: teacherData.pin 
-      })
-      
+      // Check if teacher already exists by name and pin
+      const existingTeacher = await User.findOne({ name: teacherData.name, pin: teacherData.pin })
       if (!existingTeacher) {
-        const teacher = new User(teacherData)
-        await teacher.save()
-        console.log(`Added teacher: ${teacherData.name} (PIN: ${teacherData.pin})`)
+        // Generate a unique userId
+        let userId;
+        let exists = true;
+        let attempts = 0;
+        while (exists && attempts < 10) {
+          userId = generateUserId();
+          exists = (await User.exists({ userId })) !== null;
+          attempts++;
+        }
+        if (exists) {
+          throw new Error('Could not generate unique userId for teacher');
+        }
+        const teacher = new User({ ...teacherData, userId });
+        await teacher.save();
+        console.log(`Added teacher: ${teacherData.name} (ID: ${userId}, PIN: ${teacherData.pin})`);
       } else {
-        console.log(`Teacher ${teacherData.name} already exists`)
+        // Optionally update existing teacher to have a userId if missing
+        if (!existingTeacher.userId) {
+          let userId;
+          let exists = true;
+          let attempts = 0;
+          while (exists && attempts < 10) {
+            userId = generateUserId();
+            exists = (await User.exists({ userId })) !== null;
+            attempts++;
+          }
+          if (exists) {
+            throw new Error('Could not generate unique userId for teacher');
+          }
+          existingTeacher.userId = userId;
+          await existingTeacher.save();
+          console.log(`Updated teacher ${existingTeacher.name} with userId: ${userId}`);
+        } else {
+          console.log(`Teacher ${teacherData.name} already exists (ID: ${existingTeacher.userId})`);
+        }
       }
     }
 

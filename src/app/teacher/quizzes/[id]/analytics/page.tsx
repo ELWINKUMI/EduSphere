@@ -70,9 +70,26 @@ export default function QuizAnalyticsPage() {
   const router = useRouter()
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isTeacher, setIsTeacher] = useState(false)
+
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [editEndDate, setEditEndDate] = useState('')
+  const [editLoading, setEditLoading] = useState(false)
+
+  // Retake modal state
+  const [showRetake, setShowRetake] = useState(false)
+  const [retakeTitle, setRetakeTitle] = useState('')
+  const [retakeStart, setRetakeStart] = useState('')
+  const [retakeEnd, setRetakeEnd] = useState('')
+  const [retakeLoading, setRetakeLoading] = useState(false)
+  const [allowRetakeForAll, setAllowRetakeForAll] = useState(false)
+  const [useNewQuestions, setUseNewQuestions] = useState(false)
+  const [newQuestions, setNewQuestions] = useState('') // JSON or text for now
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
+      setIsTeacher(true)
       fetchAnalytics()
     } else if (user && user.role !== 'teacher') {
       router.push(`/${user.role}/dashboard`)
@@ -91,6 +108,8 @@ export default function QuizAnalyticsPage() {
       if (response.ok) {
         const data = await response.json()
         setAnalytics(data)
+        // Set editEndDate for modal default
+        setEditEndDate(data.quiz?.endDate ? data.quiz.endDate.slice(0, 16) : '')
       } else {
         const errorData = await response.json()
         toast.error(errorData.message || 'Failed to load analytics')
@@ -102,6 +121,34 @@ export default function QuizAnalyticsPage() {
       router.push('/teacher/dashboard')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEditQuiz = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setEditLoading(true)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/quizzes/${params.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ endDate: editEndDate })
+      })
+      if (res.ok) {
+        toast.success('Quiz due date updated!')
+        setShowEdit(false)
+        fetchAnalytics()
+      } else {
+        const data = await res.json()
+        toast.error(data.message || 'Failed to update due date')
+      }
+    } catch {
+      toast.error('Failed to update due date')
+    } finally {
+      setEditLoading(false)
     }
   }
 
@@ -130,6 +177,25 @@ export default function QuizAnalyticsPage() {
     if (percentage >= 70) return 'text-yellow-600 bg-yellow-50'
     if (percentage >= 60) return 'text-orange-600 bg-orange-50'
     return 'text-red-600 bg-red-50'
+  }
+
+  const handleDeleteQuiz = async () => {
+    if (!window.confirm('Are you sure you want to delete this quiz? This action cannot be undone.')) return;
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/quizzes/${params.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success('Quiz deleted');
+        router.push('/teacher/quizzes');
+      } else {
+        toast.error('Failed to delete quiz');
+      }
+    } catch {
+      toast.error('Failed to delete quiz');
+    }
   }
 
   if (loading) {
@@ -175,6 +241,221 @@ export default function QuizAnalyticsPage() {
             </div>
           </div>
         </div>
+
+        {/* Action Buttons */}
+        {isTeacher && (
+          <div className="flex justify-end gap-2 mb-4">
+            <button
+              onClick={() => setShowEdit(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold text-sm"
+            >
+              Edit Due Date
+            </button>
+            <button
+              onClick={() => setShowRetake(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded font-semibold text-sm"
+            >
+              Create Retake
+            </button>
+            <button
+              onClick={handleDeleteQuiz}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded font-semibold text-sm"
+            >
+              Delete Quiz
+            </button>
+          </div>
+        )}
+        {/* Retake Quiz Modal */}
+        {showRetake && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-lg relative">
+              <button
+                onClick={() => setShowRetake(false)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-700"
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-xl font-bold mb-4">Create Quiz Retake</h2>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setRetakeLoading(true);
+                  try {
+                    const token = localStorage.getItem('token');
+                    let questionsArr = [];
+                    if (useNewQuestions && newQuestions.trim()) {
+                      try {
+                        questionsArr = JSON.parse(newQuestions);
+                      } catch {
+                        toast.error('Invalid questions JSON');
+                        setRetakeLoading(false);
+                        return;
+                      }
+                    }
+                    const res = await fetch(`/api/quizzes/${params.id}`, {
+                      method: 'PATCH',
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        newTitle: retakeTitle,
+                        newStartDate: retakeStart,
+                        newEndDate: retakeEnd,
+                        allowRetakeForAll,
+                        useNewQuestions,
+                        newQuestions: questionsArr,
+                      }),
+                    });
+                    if (res.ok) {
+                      toast.success('Retake quiz created!');
+                      setShowRetake(false);
+                      fetchAnalytics();
+                    } else {
+                      const data = await res.json();
+                      toast.error(data.message || 'Failed to create retake');
+                    }
+                  } catch {
+                    toast.error('Failed to create retake');
+                  } finally {
+                    setRetakeLoading(false);
+                  }
+                }}
+              >
+                <label className="block mb-2 text-sm font-medium text-gray-700">New Quiz Title</label>
+                <input
+                  type="text"
+                  className="w-full border rounded px-2 py-1 mb-4"
+                  value={retakeTitle}
+                  onChange={e => setRetakeTitle(e.target.value)}
+                  required
+                />
+                <label className="block mb-2 text-sm font-medium text-gray-700">Start Date</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded px-2 py-1 mb-4"
+                  value={retakeStart}
+                  onChange={e => setRetakeStart(e.target.value)}
+                  required
+                />
+                <label className="block mb-2 text-sm font-medium text-gray-700">End Date</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded px-2 py-1 mb-4"
+                  value={retakeEnd}
+                  onChange={e => setRetakeEnd(e.target.value)}
+                  required
+                  min={retakeStart}
+                />
+                <div className="mb-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox mr-2"
+                      checked={allowRetakeForAll}
+                      onChange={e => setAllowRetakeForAll(e.target.checked)}
+                    />
+                    Allow all students to take retake (otherwise only those who missed original)
+                  </label>
+                </div>
+                <div className="mb-4">
+                  <label className="block font-medium text-gray-700 mb-1">Questions for Retake</label>
+                  <div className="flex items-center mb-2">
+                    <label className="mr-4 inline-flex items-center">
+                      <input
+                        type="radio"
+                        className="form-radio mr-1"
+                        checked={!useNewQuestions}
+                        onChange={() => setUseNewQuestions(false)}
+                      />
+                      Use original questions
+                    </label>
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        className="form-radio mr-1"
+                        checked={useNewQuestions}
+                        onChange={() => setUseNewQuestions(true)}
+                      />
+                      Set new questions (JSON)
+                    </label>
+                  </div>
+                  {useNewQuestions && (
+                    <textarea
+                      className="w-full border rounded px-2 py-1 mb-2 text-xs font-mono"
+                      rows={6}
+                      placeholder='Paste questions as JSON array (see docs)'
+                      value={newQuestions}
+                      onChange={e => setNewQuestions(e.target.value)}
+                    />
+                  )}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowRetake(false)}
+                    className="px-4 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm font-semibold"
+                    disabled={retakeLoading}
+                  >
+                    {retakeLoading ? 'Creating...' : 'Create Retake'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Due Date Modal */}
+        {showEdit && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-40">
+            <div className="bg-white rounded-xl shadow-lg p-8 w-full max-w-md relative">
+              <button
+                onClick={() => setShowEdit(false)}
+                className="absolute top-3 right-3 text-gray-400 hover:text-gray-700"
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h2 className="text-xl font-bold mb-4">Edit Quiz Due Date</h2>
+              <form onSubmit={handleEditQuiz}>
+                <label className="block mb-2 text-sm font-medium text-gray-700">
+                  New Due Date
+                </label>
+                <input
+                  type="datetime-local"
+                  className="w-full border rounded px-2 py-1 mb-4"
+                  value={editEndDate}
+                  onChange={e => setEditEndDate(e.target.value)}
+                  required
+                  min={quiz.startDate.slice(0, 16)}
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEdit(false)}
+                    className="px-4 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-sm font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-semibold"
+                    disabled={editLoading}
+                  >
+                    {editLoading ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Overview Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

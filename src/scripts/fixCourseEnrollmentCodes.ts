@@ -1,4 +1,5 @@
 import { config } from 'dotenv'
+import 'dotenv/config'
 import { resolve } from 'path'
 import mongoose from 'mongoose'
 import Course from '../models/Course'

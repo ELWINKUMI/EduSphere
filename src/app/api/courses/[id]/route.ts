@@ -22,8 +22,23 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+
     const token = authHeader.substring(7)
-    const decoded = jwt.verify(token, JWT_SECRET) as any
+    let decoded: any
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as any
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'name' in err && err.name === 'TokenExpiredError') {
+        return NextResponse.json(
+          { error: 'Token expired' },
+          { status: 401 }
+        )
+      }
+      return NextResponse.json(
+        { error: 'Invalid token' },
+        { status: 401 }
+      )
+    }
 
     const user = await User.findById(decoded.userId)
     if (!user) {

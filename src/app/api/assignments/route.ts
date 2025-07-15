@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle both FormData (with files) and JSON requests
-    let title: string, description: string, courseId: string, dueDate: string, maxPoints: number, submissionType: string, attachmentFiles: File[]
+    let title: string, description: string, courseId: string, dueDate: string, maxPoints: number, submissionType: string, attachmentFiles: File[], attempts: number
     
     const contentType = request.headers.get('content-type') || ''
     
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
       dueDate = formData.get('dueDate') as string
       maxPoints = parseInt(formData.get('maxPoints') as string)
       submissionType = formData.get('submissionType') as string || 'both'
+      attempts = parseInt(formData.get('attempts') as string) || 1
       attachmentFiles = formData.getAll('attachments') as File[]
     } else {
       // Handle JSON request
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
       dueDate = body.dueDate
       maxPoints = body.maxPoints
       submissionType = body.submissionType || 'both'
+      attempts = parseInt(body.attempts) || 1
       attachmentFiles = []
     }
 
@@ -73,6 +75,14 @@ export async function POST(request: NextRequest) {
     if (!title || !description || !courseId || !dueDate || !maxPoints) {
       return NextResponse.json(
         { error: 'All fields are required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate courseId is a valid ObjectId
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      return NextResponse.json(
+        { error: 'Invalid course ID format. Please select a valid course.' },
         { status: 400 }
       )
     }
@@ -112,7 +122,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create assignment
+    // Create assignment (include attempts)
     const assignment = new Assignment({
       title,
       description,
@@ -124,7 +134,8 @@ export async function POST(request: NextRequest) {
       attachments,
       submissionType: submissionType || 'both',
       submissions: [],
-      isActive: true
+      isActive: true,
+      attempts // <-- add this!
     })
 
     await assignment.save()
@@ -134,6 +145,21 @@ export async function POST(request: NextRequest) {
       $push: { assignments: assignment._id }
     })
 
+    // Notify all students in the course
+    const Notification = (await import('@/models/Notification')).default;
+    const courseWithStudents = await Course.findById(courseId).select('students');
+    if (courseWithStudents && Array.isArray(courseWithStudents.students)) {
+      const notifications = courseWithStudents.students.map((studentId: any) => ({
+        student: studentId,
+        type: 'other',
+        content: `New assignment: ${assignment.title} has been posted.`,
+        read: false
+      }));
+      if (notifications.length > 0) {
+        await Notification.insertMany(notifications);
+      }
+    }
+
     return NextResponse.json({
       message: 'Assignment created successfully',
       assignment: {
@@ -142,7 +168,8 @@ export async function POST(request: NextRequest) {
         description: assignment.description,
         dueDate: assignment.dueDate,
         maxPoints: assignment.maxPoints,
-        course: course.title
+        course: course.title,
+        attempts: assignment.attempts // include attempts in response
       }
     }, { status: 201 })
 
@@ -189,18 +216,50 @@ export async function GET(request: NextRequest) {
     }
 
     let assignments: any[] = []
+    let courses: any[] = [];
 
     if (user.role === 'teacher') {
+      // Get teacher's courses
+      courses = await Course.find({ teacher: user._id });
+      courses = courses.map((c: any) => ({
+        _id: c._id?.toString?.() || '',
+        title: c.title,
+        subject: c.subject,
+        gradeLevel: c.gradeLevel,
+        enrollmentCode: c.enrollmentCode,
+        isActive: c.isActive,
+        createdAt: c.createdAt,
+        code: c.enrollmentCode
+      }));
       // Get teacher's assignments
       assignments = await Assignment.find({ teacher: user._id })
         .populate('course', 'title gradeLevel subject')
+        .populate('submissions')
         .sort({ createdAt: -1 })
-        .lean()
+        .lean();
+      // Add submissionCount and attempts to each assignment
+      assignments = assignments.map(a => ({
+        ...a,
+        submissionCount: Array.isArray(a.submissions) ? a.submissions.length : 0,
+        attempts: a.attempts ?? 1
+      }));
     } else if (user.role === 'student') {
-      // Get assignments for student's grade level
-      const courses = await Course.find({ gradeLevel: user.gradeLevel })
-      const courseIds = courses.map(c => c._id)
-      
+      // Get student's courses
+      courses = await Course.find({ gradeLevel: user.gradeLevel }).populate('teacher', 'name email');
+      courses = courses.map((c: any) => ({
+        _id: c._id?.toString?.() || '',
+        title: c.title,
+        subject: c.subject,
+        gradeLevel: c.gradeLevel,
+        enrollmentCode: c.enrollmentCode,
+        isActive: c.isActive,
+        createdAt: c.createdAt,
+        code: c.enrollmentCode,
+        teacher: c.teacher && c.teacher.name
+          ? { name: c.teacher.name, email: c.teacher.email }
+          : { name: 'Unknown', email: '' }
+      }));
+      const courseIds = courses.map(c => c._id);
       assignments = await Assignment.find({ 
         course: { $in: courseIds },
         isActive: true 
@@ -208,11 +267,21 @@ export async function GET(request: NextRequest) {
         .populate('course', 'title gradeLevel subject')
         .populate('teacher', 'name')
         .sort({ dueDate: 1 })
-        .lean()
+        .lean();
+      // Ensure attempts is present for students
+      assignments = assignments.map(a => ({
+        ...a,
+        attempts: a.attempts ?? 1
+      }));
     }
 
     return NextResponse.json({
-      assignments: assignments
+      assignments: assignments.map(a => ({
+        ...a,
+        dueDate: a.dueDate instanceof Date ? a.dueDate.toISOString() : (a.dueDate ? new Date(a.dueDate).toISOString() : null),
+        attempts: a.attempts ?? 1
+      })),
+      courses: courses
     })
 
   } catch (error) {

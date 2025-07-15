@@ -10,17 +10,18 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Input'
 
 interface Course {
-  _id: string
+  id: string  // Changed from _id to id to match API response
   title: string
   subject: string
   gradeLevel: string
 }
 
 export default function CreateAssignmentPage() {
-  const { user } = useAuth()
+  useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [courses, setCourses] = useState<Course[]>([])
+  const [coursesLoading, setCoursesLoading] = useState(true)
   const [attachments, setAttachments] = useState<File[]>([])
   const [formData, setFormData] = useState({
     title: '',
@@ -29,7 +30,8 @@ export default function CreateAssignmentPage() {
     dueDate: '',
     maxPoints: '',
     submissionType: 'file',
-    instructions: ''
+    instructions: '',
+    attempts: '1', // default 1 attempt
   })
 
   // Load teacher's courses
@@ -37,8 +39,12 @@ export default function CreateAssignmentPage() {
     const fetchCourses = async () => {
       try {
         const token = localStorage.getItem('token')
-        if (!token) return
+        if (!token) {
+          toast.error('Authentication required')
+          return
+        }
 
+        console.log('Fetching courses...')
         const response = await fetch('/api/courses', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -47,11 +53,40 @@ export default function CreateAssignmentPage() {
 
         if (response.ok) {
           const data = await response.json()
-          setCourses(data.courses)
-          console.log('Fetched courses:', data.courses)
+          console.log('Courses API response:', data)
+          console.log('Raw courses data:', JSON.stringify(data.courses, null, 2))
+          
+          // Check if courses array exists and has content
+          if (!data.courses || !Array.isArray(data.courses)) {
+            console.error('Courses API returned invalid data structure:', data)
+            toast.error('Invalid courses data received')
+            return
+          }
+          
+          if (data.courses.length === 0) {
+            console.warn('No courses found for teacher')
+            toast('No courses found. Please create a course first.')
+          }
+          
+          setCourses(data.courses || [])
+          
+          // Validate that courses have proper id fields (changed from _id to id)
+          data.courses?.forEach((course: Course, index: number) => {
+            console.log(`Course ${index}:`, course)
+            if (!course.id || typeof course.id !== 'string') {
+              console.error('Invalid course object:', course)
+            }
+          })
+        } else {
+          const errorData = await response.json()
+          console.error('Failed to fetch courses:', errorData)
+          toast.error('Failed to load courses')
         }
       } catch (error) {
         console.error('Error fetching courses:', error)
+        toast.error('Error loading courses')
+      } finally {
+        setCoursesLoading(false)
       }
     }
 
@@ -60,6 +95,7 @@ export default function CreateAssignmentPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
+    console.log(`Field changed: ${name} = ${value}`)
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -75,12 +111,25 @@ export default function CreateAssignmentPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    // Validation
     if (!formData.title || !formData.description || !formData.courseId || !formData.dueDate) {
       toast.error('Please fill in all required fields')
       return
     }
 
-    console.log('Submitting with courseId:', formData.courseId)
+    // Validate courseId format (24 characters for MongoDB ObjectId)
+    if (formData.courseId.length !== 24) {
+      toast.error('Invalid course selection. Please select a valid course.')
+      console.error('Invalid courseId length:', formData.courseId)
+      return
+    }
+
+    // Debug information
+    console.log('=== SUBMISSION DEBUG INFO ===')
+    console.log('Form data:', formData)
+    console.log('Selected course:', courses.find(c => c.id === formData.courseId)) // Changed from _id to id
+    console.log('All courses:', courses)
+
     setLoading(true)
     
     try {
@@ -91,18 +140,31 @@ export default function CreateAssignmentPage() {
         return
       }
 
-      // Create FormData to handle file uploads
+      // Create FormData for file uploads
       const form = new FormData()
       form.append('title', formData.title)
       form.append('description', formData.description)
-      form.append('course', formData.courseId) // send the ObjectId string
+      form.append('course', formData.courseId) // Make sure this is the ObjectId
       form.append('dueDate', formData.dueDate)
-      form.append('maxPoints', formData.maxPoints ? formData.maxPoints : '100')
+
+      form.append('maxPoints', formData.maxPoints || '100')
       form.append('submissionType', formData.submissionType)
+      form.append('attempts', formData.attempts || '1')
+
+      // Add instructions if provided
+      if (formData.instructions) {
+        form.append('instructions', formData.instructions)
+      }
 
       // Append files
       attachments.forEach(file => {
         form.append('attachments', file)
+      })
+
+      // Debug FormData contents
+      console.log('FormData being sent:')
+      Array.from(form.entries()).forEach(([key, value]) => {
+        console.log(`${key}: ${value}`)
       })
 
       const response = await fetch('/api/assignments', {
@@ -113,14 +175,17 @@ export default function CreateAssignmentPage() {
         body: form
       })
 
+      const responseData = await response.json()
+      console.log('API Response:', responseData)
+
       if (response.ok) {
         toast.success('Assignment created successfully!')
         router.push('/teacher/dashboard')
       } else {
-        const data = await response.json()
-        toast.error(data.error || 'Failed to create assignment')
+        toast.error(responseData.error || 'Failed to create assignment')
       }
     } catch (error) {
+      console.error('Submit error:', error)
       toast.error('An error occurred. Please try again.')
     }
     
@@ -181,20 +246,31 @@ export default function CreateAssignmentPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Course *
                   </label>
-                  <select
-                    name="courseId"
-                    value={formData.courseId}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Select a course</option>
-                    {courses.map((course) => (
-                      <option key={course._id} value={course._id}>
-                        {course.title} - {course.subject} (Grade {course.gradeLevel})
-                      </option>
-                    ))}
-                  </select>
+                  {coursesLoading ? (
+                    <div className="w-full px-4 py-3 text-gray-500 bg-gray-100 border border-gray-300 rounded-lg">
+                      Loading courses...
+                    </div>
+                  ) : (
+                    <select
+                      name="courseId"
+                      value={formData.courseId}
+                      onChange={handleChange}
+                      className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">Select a course</option>
+                      {courses.map((course) => (
+                        <option key={course.id} value={course.id}> {/* Changed from _id to id */}
+                          {course.title} - {course.subject} (Grade {course.gradeLevel})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                  {courses.length === 0 && !coursesLoading && (
+                    <p className="text-sm text-red-600 mt-1">
+                      No courses available. Please create a course first.
+                    </p>
+                  )}
                 </div>
                 
                 <div>
@@ -215,16 +291,32 @@ export default function CreateAssignmentPage() {
                   </div>
                 </div>
                 
-                <Input
-                  label="Max Points"
-                  name="maxPoints"
+              <Input
+                label="Max Points"
+                name="maxPoints"
+                type="number"
+                value={formData.maxPoints}
+                onChange={handleChange}
+                placeholder="100"
+                min="1"
+                max="1000"
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Number of Attempts
+                </label>
+                <input
                   type="number"
-                  value={formData.maxPoints}
-                  onChange={handleChange}
-                  placeholder="100"
+                  name="attempts"
                   min="1"
-                  max="1000"
+                  max="10"
+                  value={formData.attempts}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  required
                 />
+                <p className="text-xs text-gray-500 mt-1">How many times students can submit this assignment (default: 1)</p>
+              </div>
               </div>
             </div>
 
@@ -322,7 +414,7 @@ export default function CreateAssignmentPage() {
               </Link>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || courses.length === 0}
                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Creating...' : 'Create Assignment'}

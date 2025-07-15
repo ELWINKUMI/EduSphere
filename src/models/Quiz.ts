@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose'
+import Course from './Course'
 
 export interface IQuiz extends Document {
   title: string
@@ -19,6 +20,7 @@ export interface IQuiz extends Document {
   endDate: Date
   submissions: mongoose.Types.ObjectId[]
   isActive: boolean
+  eligibleStudents?: mongoose.Types.ObjectId[]
   createdAt: Date
   updatedAt: Date
 }
@@ -74,7 +76,9 @@ const QuizSchema = new Schema<IQuiz>({
   attempts: {
     type: Number,
     default: 1,
-    min: 1
+    min: 1,
+    max: 999,
+    required: true
   },
   showResults: {
     type: String,
@@ -96,7 +100,12 @@ const QuizSchema = new Schema<IQuiz>({
   isActive: {
     type: Boolean,
     default: true
-  }
+  },
+  eligibleStudents: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: false
+  }]
 }, {
   timestamps: true
 })

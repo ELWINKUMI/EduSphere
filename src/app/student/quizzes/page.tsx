@@ -119,37 +119,53 @@ export default function StudentQuizzesPage() {
   }
 
   const getQuizStatus = (quiz: Quiz) => {
-    const submission = submissions.find(s => s.quiz === quiz._id)
-    const now = new Date()
-    const endDate = new Date(quiz.endDate)
-    
+    const submission = submissions.find(s => {
+      if (!s.quiz) return false;
+      if (typeof s.quiz === 'string') return s.quiz === quiz._id;
+      if (typeof s.quiz === 'object' && s.quiz !== null && '_id' in s.quiz) {
+        return (s.quiz as { _id: string })._id === quiz._id;
+      }
+      return false;
+    });
+    const now = new Date();
+    const endDate = new Date(quiz.endDate);
     if (submission) {
-      return 'completed'
+      return 'completed';
     }
-    
     if (now > endDate) {
-      return 'expired'
+      return 'expired';
     }
-    
     if (isQuizAvailable(quiz)) {
-      return 'available'
+      return 'available';
     }
-    
-    return 'upcoming'
-  }
+    return 'upcoming';
+  };
+
+
+  // Build a Set of quiz IDs that have at least one submission
+  const completedQuizIds = new Set(submissions.map(s => s.quiz));
 
   const filteredQuizzes = quizzes.filter(quiz => {
-    const status = getQuizStatus(quiz)
-    
+    const status = getQuizStatus(quiz);
     switch (filter) {
       case 'available':
-        return status === 'available'
-      case 'completed':
-        return status === 'completed'
+        return status === 'available';
+      case 'completed': {
+        // Only show quizzes that are actually completed (have at least one submission)
+        // Use the same logic as the Completed tab count
+        const isCompleted = submissions.some(s => {
+          if (typeof s.quiz === 'string') return s.quiz === quiz._id;
+          if (typeof s.quiz === 'object' && s.quiz !== null && '_id' in s.quiz) {
+            return (s.quiz as { _id: string })._id === quiz._id;
+          }
+          return false;
+        });
+        return isCompleted;
+      }
       default:
-        return true
+        return true;
     }
-  })
+  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -240,7 +256,13 @@ export default function StudentQuizzesPage() {
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
-              Completed ({submissions.length})
+              Completed ({Array.from(new Set(submissions.map(s => {
+                if (typeof s.quiz === 'string') return s.quiz;
+                if (typeof s.quiz === 'object' && s.quiz !== null && '_id' in s.quiz) {
+                  return (s.quiz as { _id: string })._id;
+                }
+                return undefined;
+              }))).filter(Boolean).length})
             </button>
           </div>
         </div>
@@ -264,8 +286,17 @@ export default function StudentQuizzesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredQuizzes.map((quiz) => {
               const status = getQuizStatus(quiz)
-              const submission = submissions.find(s => s.quiz === quiz._id)
-              
+
+              // All submissions for this quiz
+              const quizSubmissions = submissions.filter(s => s.quiz === quiz._id);
+              const submission = quizSubmissions[quizSubmissions.length - 1]; // latest submission if any
+              // Calculate attempts
+              const attemptsAllowed = quiz?.attempts ?? 1;
+              // Use best.attemptNumber if present, fallback to 1 if there is a submission, else 0
+              const best = quizSubmissions.length > 0 ? quizSubmissions.reduce((acc, curr) => curr.score > acc.score ? curr : acc, quizSubmissions[0]) : null;
+              const attemptsUsed = best && typeof best.attemptNumber === 'number' ? best.attemptNumber : (quizSubmissions.length > 0 ? 1 : 0);
+              const hasAttemptsLeft = attemptsAllowed === 999 || attemptsUsed < attemptsAllowed;
+
               return (
                 <div
                   key={quiz._id}
@@ -306,36 +337,40 @@ export default function StudentQuizzesPage() {
                       <Calendar className="h-4 w-4 mr-2" />
                       Due: {new Date(quiz.endDate).toLocaleDateString()}
                     </div>
+                    {best && typeof best.attemptNumber === 'number' && attemptsAllowed !== 999 && (
+                      <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+                        Attempts Used: {best.attemptNumber} / {attemptsAllowed}
+                      </div>
+                    )}
                   </div>
 
-                  {submission && (
-                    <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mb-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                          Score: {submission.score}/{submission.maxScore}
-                        </span>
-                        <span className="text-sm text-green-600 dark:text-green-400">
-                          {Math.round((submission.score / submission.maxScore) * 100)}%
-                        </span>
+                  {quizSubmissions.length > 0 && (() => {
+                    // Find best submission: highest score, and if tied, lowest timeSpent
+                    const best = quizSubmissions.reduce((acc, curr) =>
+                      curr.score > acc.score ||
+                      (curr.score === acc.score && curr.timeSpent < acc.timeSpent)
+                        ? curr
+                        : acc, quizSubmissions[0]);
+                    return (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mb-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                          <span className="text-xs text-green-700 dark:text-green-400 font-semibold">
+                            Best Score: {best.score}/{best.maxScore}
+                          </span>
+                          <span className="text-xs text-green-700 dark:text-green-400 font-semibold ml-4">
+                            Time Used: {Math.floor(best.timeSpent / 60)}:{(best.timeSpent % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                          Last Attempt: {new Date(best.submittedAt).toLocaleDateString()}
+                        </p>
                       </div>
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                        Completed on {new Date(submission.submittedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   <div className="flex gap-2">
-                    {status === 'available' && (
-                      <Link
-                        href={`/student/quizzes/${quiz._id}/take`}
-                        className="flex-1 flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                      >
-                        <Play className="h-4 w-4 mr-2" />
-                        Take Quiz
-                      </Link>
-                    )}
-                    
-                    {submission && (
+                    {/* Take Quiz button removed as requested */}
+                    {quizSubmissions.length > 0 && (
                       <Link
                         href={`/student/quizzes/${quiz._id}/results`}
                         className="flex-1 flex items-center justify-center px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm font-medium"
@@ -343,7 +378,6 @@ export default function StudentQuizzesPage() {
                         View Results
                       </Link>
                     )}
-                    
                     <Link
                       href={`/student/quizzes/${quiz._id}`}
                       className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm font-medium"
@@ -359,4 +393,4 @@ export default function StudentQuizzesPage() {
       </div>
     </div>
   )
-}
+}  

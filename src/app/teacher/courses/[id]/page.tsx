@@ -79,15 +79,34 @@ export default function TeacherCourseDetailPage() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([])
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'quizzes' | 'students' | 'analytics'>('overview')
+  const [resources, setResources] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState<'overview' | 'assignments' | 'quizzes' | 'students' | 'resources' | 'analytics'>('overview')
 
   useEffect(() => {
     if (user && user.role === 'teacher') {
       fetchSubjectDetails()
+      fetchResources()
     } else if (user && user.role !== 'teacher') {
       router.push(`/${user.role}/dashboard`)
     }
   }, [user, router, courseId])
+
+  const fetchResources = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`/api/courses/${courseId}/resources`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setResources(data.resources || [])
+      }
+    } catch (error) {
+      console.error('Error fetching resources:', error)
+    }
+  }
 
   const fetchSubjectDetails = async () => {
     try {
@@ -300,6 +319,7 @@ export default function TeacherCourseDetailPage() {
             { id: 'assignments', label: 'Assignments', icon: FileText },
             { id: 'quizzes', label: 'Quizzes', icon: Play },
             { id: 'students', label: 'Students', icon: Users },
+            { id: 'resources', label: 'Resources', icon: Download },
             { id: 'analytics', label: 'Analytics', icon: BarChart3 }
           ].map(({ id, label, icon: Icon }) => (
             <button
@@ -316,6 +336,64 @@ export default function TeacherCourseDetailPage() {
             </button>
           ))}
         </div>
+        {activeTab === 'resources' && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Course Resources</h3>
+              <Link
+                href={`/teacher/resources/create?courseId=${courseId}`}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Upload Resource
+              </Link>
+            </div>
+            {resources.length === 0 ? (
+              <div className="text-center py-12">
+                <Download className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No resources yet</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Upload your first resource to share materials with students.
+                </p>
+                <Link
+                  href={`/teacher/resources/create?courseId=${courseId}`}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Upload Resource
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {resources.map((resource) => (
+                  <div key={resource._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6 flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{resource.title}</h4>
+                      <p className="text-gray-600 dark:text-gray-400 mb-2">{resource.description}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span>Type: {resource.type}</span>
+                        <span>Uploaded: {resource.createdAt ? new Date(resource.createdAt).toLocaleDateString() : ''}</span>
+                      </div>
+                    </div>
+                    <div className="mt-4 md:mt-0 flex items-center space-x-2">
+                      {resource.url && (
+                        <a
+                          href={resource.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Download
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
@@ -621,7 +699,10 @@ export default function TeacherCourseDetailPage() {
                 </div>
                 <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                    {Math.round((subject.students.length / subject.maxStudents) * 100)}%
+                    {subject && Array.isArray(subject.students) && subject.maxStudents ?
+                      Math.round((subject.students.length / subject.maxStudents) * 100)
+                      : 0
+                    }%
                   </div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Enrollment</div>
                 </div>

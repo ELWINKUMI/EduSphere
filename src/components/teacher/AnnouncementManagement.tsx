@@ -123,20 +123,20 @@ export default function AnnouncementManagement() {
   }
 
   if (loading) {
-    return <div className="py-8 text-center text-gray-500">Loading announcements...</div>
+    return <div className="py-8 text-center text-gray-500 dark:text-gray-400">Loading announcements...</div>
   }
 
   return (
     <div className="mb-12">
-      <h2 className="text-xl font-bold mb-4">Announcements</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">Announcements</h2>
       <div className="space-y-4">
-        {announcements.length === 0 && <div>No announcements yet.</div>}
+        {announcements.length === 0 && <div className="text-gray-500 dark:text-gray-400">No announcements yet.</div>}
         {announcements.map(a => (
-          <div key={a._id} className="bg-white border rounded p-4 shadow flex flex-col md:flex-row md:items-center md:justify-between">
+          <div key={a._id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded p-4 flex flex-col md:flex-row md:items-center md:justify-between transition-colors duration-200">
             <div>
-              <h3 className="font-semibold">{a.title}</h3>
-              <p className="text-gray-600">{a.content}</p>
-              <p className="text-xs text-gray-500 mt-1">Published: {a.isPublished ? 'Yes' : 'No'} | {new Date(a.createdAt).toLocaleString()}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white">{a.title}</h3>
+              <p className="text-gray-600 dark:text-gray-300">{a.content}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Published: {a.isPublished ? 'Yes' : 'No'} | {new Date(a.createdAt).toLocaleString()}</p>
             </div>
             <div className="flex items-center space-x-2 mt-3 md:mt-0">
               <button
@@ -158,42 +158,42 @@ export default function AnnouncementManagement() {
       </div>
       {/* Edit Modal */}
       {editing && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <form
             onSubmit={handleEditSave}
-            className="bg-white rounded shadow-lg w-full max-w-md p-6 relative"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded w-full max-w-md p-6 relative transition-colors duration-200"
           >
-            <h3 className="text-lg font-bold mb-4">Edit Announcement</h3>
-            <label className="block mb-2 font-medium">Title</label>
+            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Edit Announcement</h3>
+            <label className="block mb-2 font-medium text-gray-700 dark:text-gray-200">Title</label>
             <input
               name="title"
               value={editForm.title}
               onChange={handleEditChange}
-              className="w-full border rounded p-2 mb-3"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded p-2 mb-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
               required
             />
-            <label className="block mb-2 font-medium">Content</label>
+            <label className="block mb-2 font-medium text-gray-700 dark:text-gray-200">Content</label>
             <textarea
               name="content"
               value={editForm.content}
               onChange={handleEditChange}
-              className="w-full border rounded p-2 mb-3"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded p-2 mb-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
               rows={4}
               required
             />
-            <label className="block mb-2 font-medium">Priority</label>
+            <label className="block mb-2 font-medium text-gray-700 dark:text-gray-200">Priority</label>
             <select
               name="priority"
               value={editForm.priority}
               onChange={handleEditChange}
-              className="w-full border rounded p-2 mb-3"
+              className="w-full border border-gray-300 dark:border-gray-700 rounded p-2 mb-3 bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
             </select>
-            <label className="flex items-center mb-3">
+            <label className="flex items-center mb-3 text-gray-700 dark:text-gray-200">
               <input
                 type="checkbox"
                 name="isPublished"
@@ -207,7 +207,7 @@ export default function AnnouncementManagement() {
               <button
                 type="button"
                 onClick={() => setEditing(null)}
-                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 rounded bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, BookOpen } from 'lucide-react'
+import { ArrowLeft, BookOpen, Sparkles, Users, Code, Wand2 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { Input } from '@/components/ui/Input'
@@ -93,26 +93,33 @@ export default function CreateCoursePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50">
+      {/* Modern Header with Gradient */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-white/20 sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div className="flex items-center">
               <Link 
                 href="/teacher/dashboard"
-                className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
+                className="group flex items-center text-slate-600 hover:text-slate-900 mr-6 transition-all duration-200"
               >
-                <ArrowLeft className="h-5 w-5 mr-1" />
-                Back to Dashboard
+                <div className="p-2 rounded-full bg-slate-100 group-hover:bg-slate-200 transition-colors mr-3">
+                  <ArrowLeft className="h-4 w-4" />
+                </div>
+                <span className="font-medium">Back to Dashboard</span>
               </Link>
               <div className="flex items-center">
-                <div className="bg-blue-600 p-2 rounded-lg mr-3">
-                  <BookOpen className="h-6 w-6 text-white" />
+                <div className="relative">
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 rounded-2xl mr-4 shadow-lg">
+                    <BookOpen className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full animate-pulse"></div>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Create New Course</h1>
-                  <p className="text-gray-600">Set up a new course for your students</p>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                    Create New Course
+                  </h1>
+                  <p className="text-slate-600 font-medium">Design an engaging learning experience</p>
                 </div>
               </div>
             </div>
@@ -120,32 +127,41 @@ export default function CreateCoursePage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-xl shadow-sm border p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Course Title"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
-                  placeholder="e.g., Mathematics 101"
-                  required
-                />
+      {/* Modern Main Content */}
+      <main className="max-w-5xl mx-auto px-6 lg:px-8 py-8">
+        <div className="bg-white/70 backdrop-blur-sm rounded-3xl shadow-xl border border-white/20 p-8 lg:p-10">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Basic Information Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg">
+                  <Sparkles className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Course Details</h3>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="lg:col-span-1">
+                  <Input
+                    label="Course Title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="e.g., Advanced Mathematics"
+                    required
+                    className="transition-all duration-200 focus:scale-[1.02] focus:shadow-lg"
+                  />
+                </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">
                     Grade Level *
                   </label>
                   <select
                     name="gradeLevel"
                     value={formData.gradeLevel}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-3.5 text-slate-900 bg-white/80 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 hover:border-slate-300 shadow-sm"
                     required
                   >
                     <option value="">Select grade level</option>
@@ -158,14 +174,14 @@ export default function CreateCoursePage() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">
                     Subject *
                   </label>
                   <select
                     name="subject"
                     value={formData.subject}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full px-4 py-3.5 text-slate-900 bg-white/80 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 hover:border-slate-300 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     required
                     disabled={!formData.gradeLevel}
                   >
@@ -180,35 +196,57 @@ export default function CreateCoursePage() {
                   </select>
                 </div>
                 
-                <Input
-                  label="Max Students"
-                  name="maxStudents"
-                  type="number"
-                  value={formData.maxStudents}
-                  onChange={handleChange}
-                  placeholder="e.g., 30"
-                  min="1"
-                  max="100"
-                />
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Max Students
+                    </div>
+                  </label>
+                  <input
+                    type="number"
+                    name="maxStudents"
+                    value={formData.maxStudents}
+                    onChange={handleChange}
+                    placeholder="e.g., 30"
+                    min="1"
+                    max="100"
+                    className="w-full px-4 py-3.5 text-slate-900 bg-white/80 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 hover:border-slate-300 shadow-sm"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Description */}
-            <div>
+            {/* Description Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Course Description</h3>
+              </div>
+              
               <Textarea
-                label="Course Description"
+                label=""
                 name="description"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Provide a detailed description of the course content, objectives, and expectations..."
+                placeholder="Describe your course objectives, learning outcomes, and what makes it special..."
                 rows={4}
                 required
+                className="transition-all duration-200 focus:scale-[1.01] focus:shadow-lg"
               />
             </div>
 
-            {/* Enrollment Code */}
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Enrollment</h3>
+            {/* Enrollment Code Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg">
+                  <Code className="h-5 w-5 text-white" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Student Access</h3>
+              </div>
+              
               <div className="flex gap-4">
                 <div className="flex-1">
                   <Input
@@ -217,37 +255,49 @@ export default function CreateCoursePage() {
                     value={formData.enrollmentCode}
                     onChange={handleChange}
                     placeholder="Auto-generated or custom code"
+                    className="transition-all duration-200"
                   />
                 </div>
                 <div className="flex items-end">
                   <button
                     type="button"
                     onClick={generateEnrollmentCode}
-                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                    className="group px-6 py-3.5 bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 rounded-2xl hover:from-slate-200 hover:to-slate-300 transition-all duration-200 font-medium shadow-sm hover:shadow-md hover:scale-105 flex items-center gap-2"
                   >
-                    Generate Code
+                    <Wand2 className="h-4 w-4 group-hover:rotate-12 transition-transform" />
+                    Generate
                   </button>
                 </div>
               </div>
-              <p className="text-sm text-gray-600 mt-2">
-                Students will use this code to enroll in your course. Leave empty to auto-generate.
+              <p className="text-sm text-slate-600 bg-slate-50/80 p-3 rounded-xl border border-slate-200">
+                💡 Students will use this code to join your course. Leave empty for auto-generation.
               </p>
             </div>
 
-            {/* Submit Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t">
+            {/* Modern Submit Section */}
+            <div className="flex justify-end space-x-4 pt-8 border-t border-slate-200">
               <Link
                 href="/teacher/dashboard"
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-8 py-3.5 border border-slate-300 text-slate-700 rounded-2xl hover:bg-slate-50 transition-all duration-200 font-medium hover:scale-105 hover:shadow-md"
               >
                 Cancel
               </Link>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="group px-8 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
               >
-                {loading ? 'Creating...' : 'Create Course'}
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 group-hover:rotate-12 transition-transform" />
+                    Create Course
+                  </>
+                )}
               </button>
             </div>
           </form>

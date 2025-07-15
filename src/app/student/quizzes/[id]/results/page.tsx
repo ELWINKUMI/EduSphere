@@ -43,6 +43,7 @@ interface Quiz {
 
 interface QuizSubmission {
   _id: string
+  quiz?: string | { _id: string }
   score: number
   maxScore: number
   submittedAt: string
@@ -53,6 +54,7 @@ interface QuizSubmission {
   }[]
   isGraded: boolean
   feedback?: string
+  attemptNumber?: number
 }
 
 interface APIResponse {
@@ -60,6 +62,10 @@ interface APIResponse {
   submission: QuizSubmission
   canShowResults: boolean
   message: string
+}
+
+interface QuizSubmissionsResponse {
+  submissions: QuizSubmission[]
 }
 
 export default function QuizResultsPage() {
@@ -89,36 +95,72 @@ export default function QuizResultsPage() {
         return
       }
 
+      // Fetch quiz info and canShowResults
       const response = await fetch(`/api/quizzes/${quizId}/results`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       })
 
-      if (response.ok) {
-        const data: APIResponse = await response.json()
-        setQuiz(data.quiz)
-        setSubmission(data.submission)
-        setCanShowResults(data.canShowResults)
-        setMessage(data.message)
-        
-        if (!data.canShowResults) {
-          toast(data.message)
+      if (!response.ok) {
+        if (response.status === 404) {
+          toast.error('Quiz results not found')
+          router.push('/student/quizzes')
+        } else if (response.status === 401) {
+          toast.error('Please log in to view results')
+          router.push('/auth/login')
+        } else {
+          const errorData = await response.json()
+          toast.error(errorData.error || 'Failed to load quiz results')
         }
-      } else if (response.status === 404) {
-        toast.error('Quiz results not found')
-        router.push('/student/quizzes')
-      } else if (response.status === 401) {
-        toast.error('Please log in to view results')
-        router.push('/auth/login')
-      } else {
-        const errorData = await response.json()
-        toast.error(errorData.error || 'Failed to load quiz results')
+        setLoading(false)
+        return
       }
+
+      const data: APIResponse = await response.json()
+      setQuiz(data.quiz)
+      setCanShowResults(data.canShowResults)
+      setMessage(data.message)
+
+      if (!data.canShowResults) {
+        toast(data.message)
+        setSubmission(data.submission)
+        setLoading(false)
+        return
+      }
+
+      // If results can be shown, fetch all submissions for this quiz for the student
+      const submissionsRes = await fetch('/api/quiz-submissions', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      if (!submissionsRes.ok) {
+        toast.error('Failed to load quiz submissions')
+        setSubmission(data.submission) // fallback to latest
+        setLoading(false)
+        return
+      }
+      const submissionsData: QuizSubmissionsResponse = await submissionsRes.json()
+      // Filter for this quiz
+      const quizSubmissions = submissionsData.submissions.filter(s => {
+        // s.quiz can be string or object
+        if (typeof s.quiz === 'string') return s.quiz === quizId;
+        if (typeof s.quiz === 'object' && s.quiz && '_id' in s.quiz) return s.quiz._id === quizId;
+        return false;
+      })
+      // Find best: highest score, if tie, lowest timeSpent
+      let best: QuizSubmission | null = null
+      if (quizSubmissions.length > 0) {
+        best = quizSubmissions.reduce((acc, curr) =>
+          curr.score > acc.score || (curr.score === acc.score && curr.timeSpent < acc.timeSpent)
+            ? curr : acc, quizSubmissions[0])
+      }
+      setSubmission(best || data.submission)
+      setLoading(false)
     } catch (error) {
       console.error('Error fetching quiz results:', error)
       toast.error('Error loading quiz results')
-    } finally {
       setLoading(false)
     }
   }
@@ -131,15 +173,49 @@ export default function QuizResultsPage() {
     )
   }
 
-  if (!quiz || !submission) {
+  if (!quiz || !submission || !canShowResults) {
+    // Show a clear, prominent message and do NOT show any score/answers
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <Award className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Results Not Available</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {message || 'Quiz results are not available or you don\'t have permission to view them.'}
+        <div className="text-center max-w-lg mx-auto p-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg border dark:border-gray-700">
+          <Clock className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {quiz?.title || 'Quiz Results Not Available'}
+          </h1>
+          <p className="text-lg text-blue-600 dark:text-blue-400 mb-4">
+            {message || 'Quiz results are not available yet. Please check back later.'}
           </p>
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 max-w-md mx-auto mb-6">
+            <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quiz Information</h3>
+            {quiz && quiz.course && (
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Subject:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{quiz.course.subject}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Grade:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{quiz.course.gradeLevel}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Teacher:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">{quiz.teacher.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Submitted:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {submission?.submittedAt ? new Date(submission.submittedAt).toLocaleDateString() : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">Time Spent:</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {submission?.timeSpent ?? '-'} minutes
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
           <Link
             href="/student/quizzes"
             className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -147,67 +223,6 @@ export default function QuizResultsPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Quizzes
           </Link>
-        </div>
-      </div>
-    )
-  }
-
-  // If results cannot be shown, display limited information
-  if (!canShowResults) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <Link
-                href="/student/quizzes"
-                className="inline-flex items-center text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Quizzes
-              </Link>
-            </div>
-
-            <div className="text-center py-12">
-              <Clock className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                {quiz.title}
-              </h1>
-              <p className="text-lg text-blue-600 dark:text-blue-400 mb-4">
-                {message}
-              </p>
-              
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 max-w-md mx-auto">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Quiz Information</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Subject:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{quiz.course.subject}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Grade:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{quiz.course.gradeLevel}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Teacher:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{quiz.teacher.name}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Submitted:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {new Date(submission.submittedAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600 dark:text-gray-400">Time Spent:</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {submission.timeSpent} minutes
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     )

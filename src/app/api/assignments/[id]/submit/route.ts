@@ -7,6 +7,7 @@ import User from '@/models/User'
 import Course from '@/models/Course'
 import { writeFile } from 'fs/promises'
 import path from 'path'
+import mongoose from 'mongoose'
 
 export async function POST(
   request: NextRequest,
@@ -37,7 +38,10 @@ export async function POST(
 
     // Check if student is enrolled in the course
     const course = await Course.findById(assignment.course)
-    if (!course || !course.students.includes(user._id)) {
+    const studentIdStr = user._id.toString();
+    const isEnrolled = Array.isArray(course?.students) &&
+      course.students.some((sid: any) => sid.toString() === studentIdStr);
+    if (!course || !isEnrolled) {
       return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 })
     }
 
@@ -50,14 +54,26 @@ export async function POST(
       return NextResponse.json({ error: 'Assignment deadline has passed' }, { status: 400 })
     }
 
-    // Check if student has already submitted
-    const existingSubmission = await Submission.findOne({
+    // Attempts logic: fetch existing submission and calculate next attempt count
+    const attemptsAllowed = assignment.attempts ?? 1;
+    const attemptsUnlimited = attemptsAllowed === 0 || attemptsAllowed === 999;
+
+    let submission = await Submission.findOne({
       assignment: assignmentId,
       student: user._id
-    })
+    });
 
-    if (existingSubmission) {
-      return NextResponse.json({ error: 'Assignment already submitted' }, { status: 400 })
+    let currentAttemptCount = submission ? (submission.attemptCount || 1) : 0;
+    let nextAttemptCount = currentAttemptCount + 1;
+
+    // Check against the NEXT attempt count, not current
+    if (!attemptsUnlimited && nextAttemptCount > attemptsAllowed) {
+      return NextResponse.json({
+        error: 'You have exceeded the maximum number of attempts for this assignment',
+        attemptsUsed: currentAttemptCount,
+        attemptsAllowed,
+        attemptsRemaining: 0
+      }, { status: 400 })
     }
 
     // Parse form data
@@ -65,23 +81,13 @@ export async function POST(
     const content = formData.get('content') as string || ''
     const files = formData.getAll('files') as File[]
 
-    console.log('Submission data:', {
-      assignmentId,
-      userId: user._id,
-      content: content.substring(0, 50) + '...',
-      filesCount: files.length,
-      submissionType: assignment.submissionType
-    })
-
     // Validate based on submission type
     if (assignment.submissionType === 'text' && !content.trim()) {
       return NextResponse.json({ error: 'Text content is required for this assignment' }, { status: 400 })
     }
-    
     if (assignment.submissionType === 'file' && files.length === 0) {
       return NextResponse.json({ error: 'File upload is required for this assignment' }, { status: 400 })
     }
-    
     if (assignment.submissionType === 'both' && !content.trim() && files.length === 0) {
       return NextResponse.json({ error: 'Please provide either text content or upload files' }, { status: 400 })
     }
@@ -93,40 +99,66 @@ export async function POST(
         if (file && file.size > 0) {
           const bytes = await file.arrayBuffer()
           const buffer = Buffer.from(bytes)
-          
-          // Create unique filename
           const filename = `${Date.now()}-${user._id}-${file.name}`
           const filepath = path.join(process.cwd(), 'public/uploads/submissions', filename)
-          
-          // Ensure directory exists
           const uploadDir = path.dirname(filepath)
           const fs = await import('fs')
           if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir, { recursive: true })
           }
-          
           await writeFile(filepath, buffer)
           uploadedFiles.push(filename)
         }
       }
     }
 
-    // Create submission
-    const submission = new Submission({
-      assignment: assignmentId,
-      student: user._id,
-      content: content.trim(),
-      files: uploadedFiles,
-      submittedAt: new Date(),
-      isLate: new Date() > new Date(assignment.dueDate),
-      isGraded: false
-    })
+    // --- Updated resubmission logic ---
+    if (!submission) {
+      // First attempt — create new
+      submission = await Submission.create({
+        assignment: assignmentId,
+        student: user._id,
+        content: content.trim(),
+        files: uploadedFiles,
+        submittedAt: new Date(),
+        isLate: new Date() > new Date(assignment.dueDate),
+        isGraded: false,
+        attemptCount: 1
+      });
+    } else {
+      // Additional attempt — only if allowed
+      const currentAttempts = submission.attemptCount || 1;
 
-    await submission.save()
+      if (!attemptsUnlimited && currentAttempts >= attemptsAllowed) {
+        return NextResponse.json({
+          error: 'You have exceeded the maximum number of attempts for this assignment',
+          attemptsUsed: currentAttempts,
+          attemptsAllowed,
+          attemptsRemaining: 0
+        }, { status: 400 });
+      }
 
-    // Add submission to assignment's submissions array
-    assignment.submissions.push(submission._id)
-    await assignment.save()
+      // Update attempt
+      submission.content = content.trim();
+      submission.files = uploadedFiles;
+      submission.submittedAt = new Date();
+      submission.isLate = new Date() > new Date(assignment.dueDate);
+      submission.isGraded = false;
+      submission.attemptCount = currentAttempts + 1;
+
+      await submission.save();
+    }
+
+    // Add submission to assignment's submissions array if not already present
+    if (!assignment.submissions.some((id: any) => id.toString() === submission._id.toString())) {
+      assignment.submissions.push(submission._id)
+      await assignment.save()
+    }
+
+    // latestSubmission is always the upserted one
+    const latestSubmission = submission;
+    const bestScore = typeof submission.grade === 'number' ? submission.grade : 0;
+    const bestSubmission = submission;
 
     return NextResponse.json({
       success: true,
@@ -137,14 +169,22 @@ export async function POST(
         files: submission.files,
         submittedAt: submission.submittedAt,
         isLate: submission.isLate,
-        isGraded: submission.isGraded
-      }
+        isGraded: submission.isGraded,
+        grade: submission.grade,
+        feedback: submission.feedback,
+        gradedAt: submission.gradedAt,
+        attemptCount: submission.attemptCount
+      },
+      attemptsUsed: submission.attemptCount,
+      attemptsAllowed: attemptsUnlimited ? 'unlimited' : attemptsAllowed,
+      attemptsRemaining: attemptsUnlimited ? 'unlimited' : Math.max(0, attemptsAllowed - submission.attemptCount),
+      bestScore,
+      bestSubmissionId: bestSubmission._id,
+      latestSubmission
     })
 
   } catch (error: any) {
     console.error('Error submitting assignment:', error)
-    console.error('Error stack:', error.stack)
-    console.error('Error message:', error.message)
     return NextResponse.json({ 
       error: 'Internal server error',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

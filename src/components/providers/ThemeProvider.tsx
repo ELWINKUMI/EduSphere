@@ -1,5 +1,6 @@
 'use client'
 
+
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 interface ThemeContextType {
@@ -12,27 +13,35 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isDark, setIsDark] = useState(false)
 
-  useEffect(() => {
-    // Check localStorage for theme preference
-    const saved = localStorage.getItem('theme')
-    if (saved) {
-      setIsDark(saved === 'dark')
-    } else {
-      // Check system preference
-      setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
-    }
-  }, [])
 
+  // On mount, set theme from localStorage or system preference, and set <html> class immediately
   useEffect(() => {
-    // Apply theme to document
-    if (isDark) {
-      document.documentElement.classList.add('dark')
-      localStorage.setItem('theme', 'dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-      localStorage.setItem('theme', 'light')
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
+    let dark = false;
+    if (saved) {
+      dark = saved === 'dark';
+    } else if (typeof window !== 'undefined') {
+      dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
-  }, [isDark])
+    setIsDark(dark);
+    if (dark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+
+  // Update <html> class and localStorage when theme changes
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
 
   const toggleTheme = () => {
     setIsDark(prev => !prev)

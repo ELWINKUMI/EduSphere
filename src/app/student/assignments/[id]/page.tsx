@@ -13,7 +13,8 @@ import {
   AlertCircle,
   CheckCircle,
   User,
-  BookOpen
+  BookOpen,
+  Infinity as InfinityIcon
 } from 'lucide-react'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -27,6 +28,7 @@ interface Assignment {
   maxPoints: number
   attachments: string[]
   submissionType: 'file' | 'text' | 'both'
+  attempts: number // max allowed attempts (999 means unlimited)
   course: {
     _id: string
     title: string
@@ -52,6 +54,11 @@ interface Submission {
   isLate: boolean
 }
 
+interface AssignmentDetailApi {
+  assignment: Assignment
+  submissions: Submission[] // all attempts by this student
+}
+
 export default function StudentAssignmentDetailPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -59,7 +66,7 @@ export default function StudentAssignmentDetailPage() {
   const assignmentId = params.id as string
 
   const [assignment, setAssignment] = useState<Assignment | null>(null)
-  const [submission, setSubmission] = useState<Submission | null>(null)
+  const [submissions, setSubmissions] = useState<Submission[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [submissionContent, setSubmissionContent] = useState('')
@@ -87,11 +94,11 @@ export default function StudentAssignmentDetailPage() {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data: AssignmentDetailApi = await response.json()
         setAssignment(data.assignment)
-        setSubmission(data.submission || null)
-        if (data.submission?.content) {
-          setSubmissionContent(data.submission.content)
+        setSubmissions(data.submissions || [])
+        if (data.submissions && data.submissions.length > 0) {
+          setSubmissionContent(data.submissions[data.submissions.length-1].content || '')
         }
       } else if (response.status === 404) {
         toast.error('Assignment not found')
@@ -150,7 +157,7 @@ export default function StudentAssignmentDetailPage() {
 
       if (response.ok) {
         const data = await response.json()
-        setSubmission(data.submission)
+        setSubmissions((prev) => [...prev, data.submission])
         setSelectedFiles([])
         setSubmissionContent('')
         toast.success('Assignment submitted successfully!')
@@ -190,9 +197,13 @@ export default function StudentAssignmentDetailPage() {
       document.body.removeChild(link)
     }
   }
-
-  const isOverdue = assignment && new Date() > new Date(assignment.dueDate)
-  const canSubmit = assignment && !submission && !isOverdue
+  const latestSubmission = submissions.length > 0 ? submissions[submissions.length - 1] : null;
+  const attemptsAllowed = assignment?.attempts ?? 1;
+  const attemptsUsed = submissions.length;
+  const isOverdue = assignment && new Date() > new Date(assignment.dueDate);
+  const hasAttemptsLeft = attemptsAllowed === 999 || attemptsUsed < attemptsAllowed;
+  const canSubmit = assignment && assignment.isActive && hasAttemptsLeft && !isOverdue;
+  const submission = latestSubmission;
 
   // Debug logging
   console.log('Assignment data:', {
@@ -200,11 +211,14 @@ export default function StudentAssignmentDetailPage() {
       title: assignment.title,
       submissionType: assignment.submissionType,
       dueDate: assignment.dueDate,
-      isActive: assignment.isActive
+      isActive: assignment.isActive,
+      attempts: assignment.attempts
     } : null,
-    submission: submission ? 'exists' : 'null',
-    isOverdue,
-    canSubmit
+    submissionsCount: submissions.length,
+    attemptsAllowed,
+    attemptsUsed,
+    canSubmit,
+    isOverdue
   })
 
   if (loading) {
@@ -236,6 +250,11 @@ export default function StudentAssignmentDetailPage() {
     )
   }
 
+  // Remove duplicate submissions by _id before rendering
+  const uniqueSubmissions = submissions.filter(
+    (sub, idx, arr) => arr.findIndex(s => s._id === sub._id) === idx
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -258,7 +277,7 @@ export default function StudentAssignmentDetailPage() {
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              {submission ? (
+              {submissions.length > 0 ? (
                 <span className="flex items-center px-3 py-1 text-sm bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-full">
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Submitted
@@ -348,12 +367,33 @@ export default function StudentAssignmentDetailPage() {
               </div>
             )}
 
+            {/* Attempts Info */}
+            <div className="mb-4 flex flex-col gap-2">
+              <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 mr-2">
+                Attempts Used: {attemptsAllowed === 999 ? `${attemptsUsed}` : `${attemptsUsed} / ${attemptsAllowed}`}
+              </span>
+              {!hasAttemptsLeft && (
+                <div className="text-red-600 font-semibold">
+                  You have used all your allowed attempts for this assignment.
+                </div>
+              )}
+              {isOverdue && (
+                <span className="inline-block px-3 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400">
+                  Assignment is overdue
+                </span>
+              )}
+            </div>
+
             {/* Submission Form */}
+            {!hasAttemptsLeft && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm font-semibold">
+                You have used all your allowed attempts for this assignment.<br />
+                Attempts Used: {attemptsUsed} / {attemptsAllowed}
+              </div>
+            )}
             {canSubmit && (
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Submit Your Assignment</h3>
-                
-                {/* Submission Type Info */}
                 <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-300">
                     <strong>Submission Type:</strong> {
@@ -362,8 +402,12 @@ export default function StudentAssignmentDetailPage() {
                       'Text submission only'
                     }
                   </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                    {attemptsAllowed === 999
+                      ? 'You have unlimited attempts remaining.'
+                      : `You have ${Math.max(attemptsAllowed - attemptsUsed, 0)} attempt(s) remaining.`}
+                  </p>
                 </div>
-                
                 <div className="space-y-4">
                   {((assignment.submissionType || 'both') === 'text' || (assignment.submissionType || 'both') === 'both') && (
                     <div>
@@ -380,7 +424,6 @@ export default function StudentAssignmentDetailPage() {
                       />
                     </div>
                   )}
-
                   {((assignment.submissionType || 'both') === 'file' || (assignment.submissionType || 'both') === 'both') && (
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -405,17 +448,16 @@ export default function StudentAssignmentDetailPage() {
                       )}
                     </div>
                   )}
-
                   <button
                     onClick={handleSubmission}
-                    disabled={submitting || (
-                      (assignment.submissionType || 'both') === 'text' && !submissionContent.trim()
-                    ) || (
-                      (assignment.submissionType || 'both') === 'file' && selectedFiles.length === 0
-                    ) || (
-                      (assignment.submissionType || 'both') === 'both' && !submissionContent.trim() && selectedFiles.length === 0
-                    )}
-                    className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    disabled={
+                      submitting ||
+                      !hasAttemptsLeft ||
+                      ((assignment.submissionType || 'both') === 'text' && !submissionContent.trim()) ||
+                      ((assignment.submissionType || 'both') === 'file' && selectedFiles.length === 0) ||
+                      ((assignment.submissionType || 'both') === 'both' && !submissionContent.trim() && selectedFiles.length === 0)
+                    }
+                    className={`w-full flex items-center justify-center px-4 py-2 rounded-lg transition-colors ${!hasAttemptsLeft ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'}`}
                   >
                     {submitting ? (
                       <>
@@ -430,6 +472,64 @@ export default function StudentAssignmentDetailPage() {
                     )}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Previous Submissions */}
+            {uniqueSubmissions.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6 mt-6">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Your Submissions</h3>
+                <ul className="space-y-4">
+                  {uniqueSubmissions.map((sub, idx) => (
+                    <li key={sub._id} className="border-b pb-4 last:border-b-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-900 dark:text-white">Attempt {idx + 1}:</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{new Date(sub.submittedAt).toLocaleString()}</span>
+                      </div>
+                      <div className="mt-2">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">Content:</span>
+                        <div className="mt-1 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{sub.content}</p>
+                        </div>
+                      </div>
+                      {sub.files && sub.files.length > 0 && (
+                        <div className="mt-2">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">Files:</span>
+                          <ul className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            {sub.files.map((file, i) => {
+                              const fileName = file.includes('/') ? file.split('/').pop() || `File ${i + 1}` : file
+                              return (
+                                <li key={i} className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4" />
+                                  <button
+                                    onClick={() => downloadFile(fileName, fileName, true)}
+                                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                                  >
+                                    {fileName}
+                                  </button>
+                                </li>
+                              )
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      {sub.isGraded && (
+                        <div className="mt-2">
+                          <span className="font-medium text-gray-700 dark:text-gray-300">Grade:</span>
+                          <span className="ml-2 text-green-600 dark:text-green-400 font-semibold">{sub.grade}/{assignment.maxPoints}</span>
+                          {sub.feedback && (
+                            <div className="mt-2">
+                              <span className="font-medium text-gray-700 dark:text-gray-300">Feedback:</span>
+                              <div className="mt-1 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                                <p className="text-gray-700 dark:text-gray-300">{sub.feedback}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -486,7 +586,7 @@ export default function StudentAssignmentDetailPage() {
                         <div>
                           <span className="font-medium text-gray-900 dark:text-white">Grade:</span>
                           <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                            {submission.grade}/{assignment.maxPoints}
+                            {submissions.length > 0 ? submissions[submissions.length-1].grade : '-'} / {assignment.maxPoints}
                           </p>
                         </div>
                         <div>

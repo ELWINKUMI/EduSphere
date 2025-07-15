@@ -1,3 +1,6 @@
+// No changes needed. File is already clean and functional.
+
+// No changes needed. File is already clean and functional.
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -44,6 +47,7 @@ interface Quiz {
     type: string
     points: number
   }>
+  eligibleStudents?: string[]
 }
 
 interface QuizSubmission {
@@ -55,6 +59,11 @@ interface QuizSubmission {
   attemptNumber: number
 }
 
+// Helper to get attempts used from submission or default to 0
+function getAttemptsUsed(submission: QuizSubmission | null) {
+  return submission?.attemptNumber ?? 0;
+}
+
 export default function StudentQuizDetailPage() {
   const { user } = useAuth()
   const router = useRouter()
@@ -62,16 +71,42 @@ export default function StudentQuizDetailPage() {
   const quizId = params.id as string
 
   const [quiz, setQuiz] = useState<Quiz | null>(null)
-  const [submission, setSubmission] = useState<QuizSubmission | null>(null)
+  const [submission, setSubmission] = useState<any | null>(null)
+  const [allQuizSubmissions, setAllQuizSubmissions] = useState<QuizSubmission[]>([]);
   const [loading, setLoading] = useState(true)
+
 
   useEffect(() => {
     if (quizId && user && user.role === 'student') {
-      fetchQuizDetails()
+      fetchQuizDetails();
+      fetchAllQuizSubmissions();
     } else if (user && user.role !== 'student') {
-      router.push('/auth/login')
+      router.push('/auth/login');
     }
-  }, [quizId, user, router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizId, user, router]);
+
+  // Fetch all submissions for this quiz and student
+  const fetchAllQuizSubmissions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/quiz-submissions', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Only keep submissions for this quiz
+        const filtered = (data.submissions || []).filter((s: any) => s.quiz && (s.quiz._id === quizId || s.quiz === quizId));
+        setAllQuizSubmissions(filtered);
+      } else {
+        setAllQuizSubmissions([]);
+      }
+    } catch (error) {
+      setAllQuizSubmissions([]);
+    }
+  };
 
   const fetchQuizDetails = async () => {
     try {
@@ -85,7 +120,15 @@ export default function StudentQuizDetailPage() {
       if (response.ok) {
         const data = await response.json()
         setQuiz(data.quiz)
-        setSubmission(data.submission || null)
+        // Patch: ensure maxScore is set for result display
+        if (data.submission) {
+          setSubmission({
+            ...data.submission,
+            maxScore: data.submission.maxScore ?? data.submission.totalPoints
+          });
+        } else {
+          setSubmission(null);
+        }
       } else if (response.status === 404) {
         toast.error('Quiz not found')
         router.push('/student/quizzes')
@@ -133,6 +176,18 @@ export default function StudentQuizDetailPage() {
     if (!quiz || !quiz.questions) return 0
     return quiz.questions.reduce((total, q) => total + q.points, 0)
   }
+
+  // Calculate attempts
+  const attemptsAllowed = quiz?.attempts ?? 1;
+  // Use the count of all submissions for this quiz as attempts used
+  const attemptsUsed = allQuizSubmissions.length;
+  // Check eligibility for retake quizzes
+  let isEligible = true;
+  if (quiz?.eligibleStudents && Array.isArray(quiz.eligibleStudents) && quiz.eligibleStudents.length > 0 && user) {
+    // eligibleStudents are always strings, user._id is the MongoDB id
+    isEligible = quiz.eligibleStudents.includes(user._id);
+  }
+  const hasAttemptsLeft = (attemptsAllowed === 999 || attemptsUsed < attemptsAllowed) && isEligible;
 
   if (loading) {
     return (
@@ -252,12 +307,39 @@ export default function StudentQuizDetailPage() {
                 <div>
                   <span className="font-medium text-gray-900 dark:text-white">Attempts Allowed:</span>
                   <p className="text-gray-600 dark:text-gray-400">
-                    {quiz.attempts === 999 ? 'Unlimited' : quiz.attempts}
+                    {attemptsAllowed === 999 ? 'Unlimited' : attemptsAllowed}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-900 dark:text-white">Attempts Used:</span>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    {attemptsAllowed === 999 ? `${attemptsUsed}` : `${attemptsUsed} / ${attemptsAllowed}`}
                   </p>
                 </div>
               </div>
+              {/* Start Quiz button placed here, after details grid but before card closes */}
+              <div className="mt-8">
+                <Link
+                  href={hasAttemptsLeft ? `/student/quizzes/${quiz._id}/take` : '#'}
+                  className={`inline-flex items-center px-6 py-3 rounded-lg font-medium transition-colors ${hasAttemptsLeft ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                  tabIndex={hasAttemptsLeft ? 0 : -1}
+                  aria-disabled={!hasAttemptsLeft}
+                >
+                  <Play className="h-5 w-5 mr-2" />
+                  Start Quiz
+                </Link>
+                {!isEligible && (
+                  <div className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded text-sm font-semibold">
+                    You are not eligible to take this retake quiz.
+                  </div>
+                )}
+                {isEligible && !hasAttemptsLeft && (
+                  <div className="mt-2 px-4 py-2 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded text-sm font-semibold">
+                    You have used all your allowed attempts for this quiz.
+                  </div>
+                )}
+              </div>
             </div>
-
             {/* Quiz Instructions */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border dark:border-gray-700 p-6">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Instructions</h3>
@@ -294,10 +376,10 @@ export default function StudentQuizDetailPage() {
                 <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-lg font-semibold text-green-800 dark:text-green-200">
-                      Score: {submission.score}/{submission.maxScore}
+                      Score: {submission.score}/{submission.maxScore ?? submission.totalPoints}
                     </span>
                     <span className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {Math.round((submission.score / submission.maxScore) * 100)}%
+                      {submission.maxScore || submission.totalPoints ? Math.round((submission.score / (submission.maxScore ?? submission.totalPoints)) * 100) : 0}%
                     </span>
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-sm text-green-700 dark:text-green-300">
@@ -314,37 +396,7 @@ export default function StudentQuizDetailPage() {
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-4">
-              {status === 'available' && !submission && (
-                <Link
-                  href={`/student/quizzes/${quiz._id}/take`}
-                  className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                >
-                  <Play className="h-5 w-5 mr-2" />
-                  Start Quiz
-                </Link>
-              )}
-              
-              {submission && (
-                <Link
-                  href={`/student/quizzes/${quiz._id}/results`}
-                  className="flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                >
-                  <Award className="h-5 w-5 mr-2" />
-                  View Detailed Results
-                </Link>
-              )}
-              
-              <Link
-                href="/student/quizzes"
-                className="flex items-center px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors font-medium"
-              >
-                Back to Quizzes
-              </Link>
-            </div>
           </div>
-
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Course Info */}

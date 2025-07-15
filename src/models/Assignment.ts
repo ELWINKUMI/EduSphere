@@ -14,6 +14,7 @@ export interface IAssignment extends Document {
   isActive: boolean
   createdAt: Date
   updatedAt: Date
+  attempts: number
 }
 
 const AssignmentSchema = new Schema<IAssignment>({
@@ -64,6 +65,13 @@ const AssignmentSchema = new Schema<IAssignment>({
   isActive: {
     type: Boolean,
     default: true
+  },
+  attempts: {
+    type: Number,
+    default: 1,
+    min: 1,
+    max: 999,
+    required: true
   }
 }, {
   timestamps: true

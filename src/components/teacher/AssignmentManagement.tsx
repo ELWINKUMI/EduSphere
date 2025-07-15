@@ -264,7 +264,16 @@ export default function AssignmentManagement() {
                     <div className="flex items-center space-x-1">
                       <Calendar className="h-4 w-4" />
                       <span className={isDark ? 'text-gray-300' : 'text-gray-600'}>
-                        Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                        {(() => {
+                          if (!assignment.dueDate || assignment.dueDate.trim() === '') {
+                            return 'Due: Not set';
+                          }
+                          const date = new Date(assignment.dueDate);
+                          if (isNaN(date.getTime())) {
+                            return 'Due: Invalid date';
+                          }
+                          return `Due: ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                        })()}
                       </span>
                     </div>
                     <div className="flex items-center space-x-1">

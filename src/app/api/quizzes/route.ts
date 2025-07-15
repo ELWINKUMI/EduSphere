@@ -96,6 +96,28 @@ export async function POST(request: NextRequest) {
 
     await quiz.save()
 
+    // Notify all students in the course about the new quiz
+    try {
+      const User = (await import('@/models/User')).default;
+      const Notification = (await import('@/models/Notification')).default;
+      // Find all students enrolled in the course
+      const courseWithStudents = await Course.findById(courseId).populate('students', 'name');
+      if (courseWithStudents && courseWithStudents.students && courseWithStudents.students.length > 0) {
+        const notifications = courseWithStudents.students.map((student: any) => ({
+          type: 'quiz_created',
+          student: student._id,
+          studentName: student.name,
+          content: `A new quiz "${quiz.title}" has been posted for your course: ${course.title}`,
+          read: false,
+          createdAt: new Date(),
+          quiz: quiz._id,
+        }));
+        await Notification.insertMany(notifications);
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create student notifications for quiz:', notifyErr);
+    }
+
     return NextResponse.json({
       message: 'Quiz created successfully',
       quiz: {

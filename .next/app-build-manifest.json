@@ -1,55 +1,105 @@
 {
   "pages": {
-    "/api/assignments/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/assignments/route.js"
-    ],
     "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/teacher/dashboard/page": [
+    "/teacher/quizzes/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teacher/dashboard/page.js"
+      "static/chunks/app/teacher/quizzes/page.js"
+    ],
+    "/student/quizzes/[id]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/quizzes/[id]/page.js"
+    ],
+    "/api/auth/verify/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/auth/verify/route.js"
+    ],
+    "/api/quizzes/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/quizzes/route.js"
+    ],
+    "/teacher/quizzes/[id]/analytics/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/teacher/quizzes/[id]/analytics/page.js"
+    ],
+    "/api/quizzes/[id]/analytics/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/quizzes/[id]/analytics/route.js"
+    ],
+    "/api/quizzes/[id]/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/quizzes/[id]/route.js"
+    ],
+    "/teacher/quizzes/create/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/teacher/quizzes/create/page.js"
     ],
     "/api/teacher/subjects/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/teacher/subjects/route.js"
     ],
-    "/api/teacher/stats/route": [
+    "/student/quizzes/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/teacher/stats/route.js"
+      "static/chunks/app/student/quizzes/page.js"
+    ],
+    "/teacher/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/teacher/dashboard/page.js"
+    ],
+    "/student/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/dashboard/page.js"
+    ],
+    "/auth/login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/auth/login/page.js"
+    ],
+    "/student/courses/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/courses/page.js"
     ],
     "/api/students/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/students/route.js"
     ],
-    "/api/teacher/announcements/route": [
+    "/api/assignments/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/teacher/announcements/route.js"
+      "static/chunks/app/api/assignments/route.js"
     ],
     "/api/teacher/enrolled-students/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/teacher/enrolled-students/route.js"
     ],
-    "/page": [
+    "/api/teacher/announcements/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/page.js"
+      "static/chunks/app/api/teacher/announcements/route.js"
     ],
-    "/auth/login/page": [
+    "/api/teacher/stats/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/auth/login/page.js"
+      "static/chunks/app/api/teacher/stats/route.js"
     ],
     "/api/teacher/recent-assignments/route": [
       "static/chunks/webpack.js",
@@ -61,20 +111,45 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/auth/login/route.js"
     ],
-    "/teacher/assignments/create/page": [
+    "/api/student/stats/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/teacher/assignments/create/page.js"
+      "static/chunks/app/api/student/stats/route.js"
     ],
-    "/api/courses/route": [
+    "/api/student/submissions/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/courses/route.js"
+      "static/chunks/app/api/student/submissions/route.js"
     ],
-    "/api/auth/verify/route": [
+    "/api/student/notifications/route": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/auth/verify/route.js"
+      "static/chunks/app/api/student/notifications/route.js"
+    ],
+    "/api/submissions/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/submissions/route.js"
+    ],
+    "/api/quiz-submissions/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/quiz-submissions/route.js"
+    ],
+    "/api/assignments/process-overdue/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/assignments/process-overdue/route.js"
+    ],
+    "/student/quizzes/[id]/take/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/student/quizzes/[id]/take/page.js"
+    ],
+    "/api/quizzes/[id]/submit/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/quizzes/[id]/submit/route.js"
     ]
   }
 }

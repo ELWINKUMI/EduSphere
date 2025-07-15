@@ -1,5 +1,7 @@
+import 'dotenv/config'
 import mongoose from 'mongoose'
 import Course from '@/models/Course'
+import User from '@/models/User'
 import connectDB from '@/lib/mongodb'
 
 /**
@@ -10,6 +12,34 @@ async function cleanupDatabase() {
   try {
     await connectDB()
     console.log('Connected to MongoDB')
+
+    // --- USER CLEANUP LOGIC ---
+    // Remove users with null, undefined, or empty userId
+    const userResult = await User.deleteMany({
+      $or: [
+        { userId: null },
+        { userId: undefined },
+        { userId: '' }
+      ]
+    })
+    console.log(`Removed ${userResult.deletedCount} users with invalid userId`)
+
+    // Drop and recreate the userId index as unique and sparse
+    try {
+      await User.collection.dropIndex('userId_1')
+      console.log('Dropped existing userId index')
+    } catch (error) {
+      console.log('userId index might not exist, continuing...')
+    }
+    await User.collection.createIndex(
+      { userId: 1 },
+      {
+        unique: true,
+        sparse: true,
+        background: true
+      }
+    )
+    console.log('Created new userId index (unique, sparse)')
 
     // Remove courses with null enrollment codes
     const result = await Course.deleteMany({ 

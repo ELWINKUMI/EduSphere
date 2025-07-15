@@ -194,20 +194,31 @@ export default function StudentAssignmentsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-gray-900 dark:via-gray-950 dark:to-blue-950 dark:text-gray-100 transition-colors">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white dark:bg-gray-900/90 shadow-sm border-b dark:border-gray-800 transition-colors">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-6">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">My Assignments</h1>
-              <p className="text-gray-600">View and submit your assignments</p>
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">My Assignments</h1>
+              <p className="text-gray-600 dark:text-gray-300">View and submit your assignments</p>
             </div>
             <Link
               href="/student/dashboard"
-              className="px-4 py-2 text-blue-600 hover:text-blue-700 font-medium"
+              className="inline-flex items-center px-2 py-1 text-blue-600 hover:text-blue-700 text-sm bg-blue-100 dark:bg-blue-900/20 rounded shadow transition-colors"
+              title="Back to Dashboard"
             >
-              Back to Dashboard
+              <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4 mr-1"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
             </Link>
           </div>
         </div>
@@ -226,7 +237,7 @@ export default function StudentAssignmentsPage() {
             {assignments.map((assignment) => (
               <div
                 key={assignment._id}
-                className="bg-white rounded-lg shadow-sm border overflow-hidden"
+                className="bg-white dark:bg-gray-800/80 rounded-lg shadow-sm border dark:border-gray-700 overflow-hidden transition-colors"
               >
                 <div className="p-6">
                   <div className="flex items-start justify-between">
@@ -239,16 +250,16 @@ export default function StudentAssignmentsPage() {
                           {assignment.title}
                         </Link>
                         {assignment.submitted ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                             Submitted
                           </span>
                         ) : isOverdue(assignment.dueDate) ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
                             <AlertCircle className="w-3 h-3 mr-1" />
                             Overdue
                           </span>
                         ) : getDaysUntilDue(assignment.dueDate) <= 1 ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
                             <Clock className="w-3 h-3 mr-1" />
                             Due Soon
                           </span>
@@ -256,22 +267,22 @@ export default function StudentAssignmentsPage() {
                       </div>
                       
                       <div className="mt-2 space-y-1">
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           <strong>Course:</strong> {assignment.course.title} ({assignment.course.subject})
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           <strong>Teacher:</strong> {assignment.teacher.name}
                         </p>
-                        <p className="text-sm text-gray-600 flex items-center">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center">
                           <Calendar className="w-4 h-4 mr-1" />
                           <strong>Due:</strong> {formatDate(assignment.dueDate)}
                         </p>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           <strong>Points:</strong> {assignment.maxPoints}
                         </p>
                       </div>
 
-                      <p className="mt-3 text-gray-700">{assignment.description}</p>
+                      <p className="mt-3 text-gray-700 dark:text-gray-200">{assignment.description}</p>
 
                       {/* Assignment Attachments */}
                       {assignment.attachments && assignment.attachments.length > 0 && (

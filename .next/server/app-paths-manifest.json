@@ -1,6 +1,12 @@
 {
-  "/api/courses/route": "app/api/courses/route.js",
+  "/api/quizzes/[id]/route": "app/api/quizzes/[id]/route.js",
+  "/api/quizzes/[id]/analytics/route": "app/api/quizzes/[id]/analytics/route.js",
   "/api/auth/verify/route": "app/api/auth/verify/route.js",
-  "/api/assignments/route": "app/api/assignments/route.js",
-  "/teacher/assignments/create/page": "app/teacher/assignments/create/page.js"
+  "/api/quizzes/route": "app/api/quizzes/route.js",
+  "/api/quiz-submissions/route": "app/api/quiz-submissions/route.js",
+  "/student/quizzes/[id]/page": "app/student/quizzes/[id]/page.js",
+  "/teacher/quizzes/page": "app/teacher/quizzes/page.js",
+  "/teacher/quizzes/[id]/analytics/page": "app/teacher/quizzes/[id]/analytics/page.js",
+  "/student/quizzes/[id]/take/page": "app/student/quizzes/[id]/take/page.js",
+  "/student/quizzes/page": "app/student/quizzes/page.js"
 }

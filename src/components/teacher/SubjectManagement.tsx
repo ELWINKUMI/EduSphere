@@ -181,12 +181,12 @@ export default function SubjectManagement() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">My Subjects</h3>
+      <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-6 transition-colors duration-200">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">My Subjects</h3>
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="animate-pulse">
-              <div className="h-20 bg-gray-200 rounded-lg"></div>
+              <div className="h-20 bg-gray-200 dark:bg-gray-800 rounded-lg"></div>
             </div>
           ))}
         </div>
@@ -195,17 +195,17 @@ export default function SubjectManagement() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border p-6">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-300 dark:border-gray-700 p-6 transition-colors duration-200">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold text-gray-900">My Subjects</h3>
-        <div className="text-sm text-gray-500">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">My Subjects</h3>
+        <div className="text-sm text-gray-500 dark:text-gray-400">
           {subjects.length} {subjects.length === 1 ? 'subject' : 'subjects'}
         </div>
       </div>
 
       {subjects.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+          <BookOpen className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-700" />
           <p>No subjects created yet.</p>
           <p className="text-sm">Create your first subject to see it here.</p>
         </div>
@@ -214,7 +214,7 @@ export default function SubjectManagement() {
           {subjects.map((subject) => (
             <div
               key={subject._id}
-              className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+              className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-shadow bg-white dark:bg-gray-900"
             >
               {/* Subject Header */}
               <div className={`bg-gradient-to-r ${getSubjectColor(subject.subject)} p-4 text-white`}>
@@ -256,7 +256,7 @@ export default function SubjectManagement() {
                       </button>
                       
                       {actionMenuOpen === subject._id && (
-                        <div className="absolute right-0 top-8 bg-white rounded-lg shadow-lg border py-1 z-10 min-w-[150px]">
+                            <div className="absolute right-0 top-8 bg-white dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 py-1 z-20 min-w-[150px] transition-colors duration-200">
                           <button
                             onClick={() => {
                               setActionMenuOpen(null)
@@ -297,19 +297,19 @@ export default function SubjectManagement() {
 
               {/* Subject Content */}
               <div className="p-4">
-                <p className="text-gray-600 text-sm mb-4">{subject.description}</p>
+                <p className="text-gray-600 dark:text-gray-300 text-sm mb-4">{subject.description}</p>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Enrollment Code */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-gray-500 mb-1">Enrollment Code</p>
-                        <p className="font-mono font-semibold text-gray-900">{subject.enrollmentCode}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Enrollment Code</p>
+                        <p className="font-mono font-semibold text-gray-900 dark:text-white">{subject.enrollmentCode}</p>
                       </div>
                       <button
                         onClick={() => copyEnrollmentCode(subject.enrollmentCode)}
-                        className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                        className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                         title="Copy code"
                       >
                         <Copy className="h-4 w-4" />
@@ -318,22 +318,22 @@ export default function SubjectManagement() {
                   </div>
 
                   {/* Students */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Students Enrolled</p>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Students Enrolled</p>
                     <div className="flex items-center">
-                      <Users className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="font-semibold text-gray-900">
+                      <Users className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
+                      <span className="font-semibold text-gray-900 dark:text-white">
                         {subject.currentStudents}/{subject.maxStudents}
                       </span>
                     </div>
                   </div>
 
                   {/* Last Updated */}
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-xs text-gray-500 mb-1">Last Updated</p>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Last Updated</p>
                     <div className="flex items-center">
-                      <Calendar className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-sm text-gray-900">{formatDate(subject.updatedAt)}</span>
+                      <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
+                      <span className="text-sm text-gray-900 dark:text-white">{formatDate(subject.updatedAt)}</span>
                     </div>
                   </div>
                 </div>

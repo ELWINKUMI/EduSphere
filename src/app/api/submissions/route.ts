@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Submission from '@/models/Submission'
+import Notification from '@/models/Notification'
 import Assignment from '@/models/Assignment'
 import User from '@/models/User'
 import jwt from 'jsonwebtoken'
@@ -87,7 +88,24 @@ export async function POST(request: NextRequest) {
       isGraded: false
     })
 
+
     await submission.save()
+
+    // Notify teacher of new submission
+    try {
+      const assignmentPop = await Assignment.findById(assignmentId).populate('teacher');
+      if (assignmentPop && assignmentPop.teacher) {
+        await Notification.create({
+          teacher: assignmentPop.teacher._id,
+          type: 'assignment_submission',
+          studentName: student.name,
+          content: `${student.name} submitted assignment: ${assignment.title}`,
+        });
+      }
+    } catch (notifyErr) {
+      // Log but don't block submission
+      console.error('Notification error:', notifyErr);
+    }
 
     // Add submission to assignment
     await Assignment.findByIdAndUpdate(assignmentId, {

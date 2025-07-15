@@ -59,15 +59,22 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Check if student has already submitted (and if multiple attempts are allowed)
-    const existingSubmissions = await QuizSubmission.find({
-      quiz: quizId,
-      student: decoded.userId
-    }).sort({ submittedAt: -1 })
+    // Count attempts by storing a counter in the Quiz model's submissions array for this student/quiz
+    // Since we now delete all but the best submission, we need a persistent way to track attempts
+    // We'll use a separate Attempts collection or a field in User, but for now, let's use a hidden field in QuizSubmission
+    // We'll keep a 'attemptsUsed' field in the best submission, incremented on each attempt
+    // Count attempts by counting all previous submissions for this quiz/student
+    const previousSubmissions = await QuizSubmission.find({ quiz: quizId, student: decoded.userId });
+    const attemptsUsed = previousSubmissions.length;
+    const attemptsAllowed = quiz.attempts;
+    const attemptsRemaining = attemptsAllowed === 999 ? Infinity : attemptsAllowed - attemptsUsed;
 
-    if (existingSubmissions.length >= quiz.attempts && quiz.attempts !== 999) {
+    if (attemptsAllowed !== 999 && attemptsUsed >= attemptsAllowed) {
       return NextResponse.json({ 
-        message: 'You have exceeded the maximum number of attempts for this quiz' 
+        message: 'You have exceeded the maximum number of attempts for this quiz',
+        attemptsUsed,
+        attemptsAllowed,
+        attemptsRemaining: 0
       }, { status: 400 })
     }
 
@@ -84,7 +91,7 @@ export async function POST(
       let isCorrect = false
       let pointsEarned = 0
 
-      if (studentAnswer) {
+      if (studentAnswer !== undefined && studentAnswer !== null) {
         // For multiple choice and true/false, exact match
         if (question.type === 'multiple-choice' || question.type === 'true-false') {
           if (studentAnswer === correctAnswer) {
@@ -93,11 +100,17 @@ export async function POST(
             score += question.points
           }
         } 
-        // For short answer, give full points (manual grading can be implemented later)
+        // For short answer, compare trimmed, case-insensitive
         else if (question.type === 'short-answer') {
-          isCorrect = true // Assume correct for now, manual grading needed
-          pointsEarned = question.points
-          score += question.points
+          if (
+            typeof studentAnswer === 'string' &&
+            typeof correctAnswer === 'string' &&
+            studentAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()
+          ) {
+            isCorrect = true
+            pointsEarned = question.points
+            score += question.points
+          }
         }
       }
 
@@ -107,7 +120,8 @@ export async function POST(
       })
     })
 
-    // Create the submission
+
+    // Create the submission, incrementing attemptNumber
     const submission = new QuizSubmission({
       quiz: quizId,
       student: decoded.userId,
@@ -116,25 +130,50 @@ export async function POST(
       maxScore,
       timeSpent: quiz.timeLimit, // TODO: Calculate actual time spent
       submittedAt: submittedAt || new Date(),
-      isGraded: true // Auto-graded for MC and T/F
-    })
-
-    await submission.save()
+      isGraded: true, // Auto-graded for MC and T/F
+      attemptNumber: attemptsUsed + 1
+    });
+    await submission.save();
 
     // Add submission to quiz's submissions array
     quiz.submissions.push(submission._id)
     await quiz.save()
 
+
+    // Find the best score among all attempts (including this one)
+    const allSubmissions = await QuizSubmission.find({ quiz: quizId, student: decoded.userId });
+    let bestScore = 0;
+    let best = submission;
+    for (const sub of allSubmissions) {
+      if (sub.score > bestScore) {
+        bestScore = sub.score;
+        best = sub;
+      }
+    }
+
+    // No deletion: keep all submissions for attempt tracking
+    // Optionally, update the quiz.submissions array to include all submissions
+    if (!quiz.submissions.includes(submission._id)) {
+      quiz.submissions.push(submission._id);
+      await quiz.save();
+    }
+
     return NextResponse.json({
       message: 'Quiz submitted successfully',
       submission: {
-        _id: submission._id,
-        score,
-        totalPoints: maxScore,
-        submittedAt: submission.submittedAt,
-        isGraded: submission.isGraded,
-        answers: submission.answers
-      }
+        _id: best._id,
+        score: best.score,
+        totalPoints: best.maxScore,
+        submittedAt: best.submittedAt,
+        isGraded: best.isGraded,
+        answers: best.answers,
+        attemptNumber: best.attemptNumber
+      },
+      attemptsUsed: allSubmissions.length,
+      attemptsAllowed,
+      attemptsRemaining: attemptsAllowed === 999 ? Infinity : attemptsAllowed - allSubmissions.length,
+      bestScore,
+      bestSubmissionId: best._id
     }, { status: 201 })
 
   } catch (error) {

@@ -1,6 +1,9 @@
+
 import { NextRequest, NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import QuizSubmission from '@/models/QuizSubmission'
+import Quiz from '@/models/Quiz'
+import Course from '@/models/Course'
 import jwt from 'jsonwebtoken'
 
 export async function GET(request: NextRequest) {
@@ -20,7 +23,14 @@ export async function GET(request: NextRequest) {
     const submissions = await QuizSubmission.find({ 
       student: decoded.userId 
     })
-      .populate('quiz', 'title')
+      .populate({
+        path: 'quiz',
+        select: 'title course',
+        populate: {
+          path: 'course',
+          select: 'title subject gradeLevel',
+        },
+      })
       .sort({ submittedAt: -1 })
 
     return NextResponse.json({ submissions }, { status: 200 })

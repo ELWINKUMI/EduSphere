@@ -4,6 +4,11 @@ import User from '@/models/User'
 import jwt from 'jsonwebtoken'
 import { ALL_GRADES } from '@/lib/schoolConfig'
 
+// Generate a unique userId (8-digit string)
+function generateUserId() {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
+
 export async function POST(request: NextRequest) {
   try {
     await connectDB()
@@ -73,26 +78,47 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create new student
+    let userId;
+    let exists = true;
+    let attempts = 0;
+    while (exists && attempts < 10) {
+      userId = generateUserId();
+      exists = (await User.exists({ userId })) !== null;
+      attempts++;
+    }
+    if (exists) {
+      return NextResponse.json(
+        { error: 'Could not generate unique userId for student' },
+        { status: 500 }
+      );
+    }
+
+    // Create new student with userId
     const student = new User({
       name: name.trim(),
       pin,
       role: 'student',
-      gradeLevel
-    })
+      gradeLevel,
+      userId
+    });
 
-    await student.save()
+
+    await student.save();
+    // Fetch the student again to see what is actually saved
+    const savedStudent = await User.findById(student._id);
+    console.log('Saved student:', savedStudent);
 
     return NextResponse.json({
       message: 'Student created successfully',
       student: {
-        id: student._id,
-        name: student.name,
-        pin: student.pin,
-        gradeLevel: student.gradeLevel,
-        role: student.role
+        id: savedStudent._id,
+        name: savedStudent.name,
+        gradeLevel: savedStudent.gradeLevel,
+        role: savedStudent.role,
+        userId: savedStudent.userId
+        // Do NOT return pin here
       }
-    })
+    });
 
   } catch (error) {
     console.error('Create student error:', error)
@@ -138,12 +164,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all students (teachers can see all students to enroll them in courses)
-    const students = await User.find({ 
-      role: 'student' 
-    }, 'name pin gradeLevel createdAt').sort({ createdAt: -1 })
+    const students = await User.find({ role: 'student' }).sort({ createdAt: -1 })
 
     return NextResponse.json({
-      students: students
+      students
     })
 
   } catch (error) {

@@ -18,12 +18,9 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.substring(7)
 
+
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-        userId: string
-        email: string
-        role: string
-      }
+      const decoded: { userId: string; email: string; role: string } = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; email: string; role: string };
 
       const user = await User.findById(decoded.userId).select('-password')
       
@@ -36,17 +33,27 @@ export async function GET(request: NextRequest) {
 
       const userData = {
         id: user._id,
-        email: user.email,
         name: user.name,
+        email: user.email,
+        userId: user.userId,
         role: user.role,
-        avatar: user.avatar
+        avatar: user.avatar,
+        gradeLevel: user.gradeLevel,
+        // Ensure we do not return sensitive information like password or pin
+        // Do not return pin here
+        // Add more fields here if needed for the frontend
       }
 
       return NextResponse.json({
         user: userData
       })
-
-    } catch (jwtError) {
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'name' in err && (err as { name?: string }).name === 'TokenExpiredError') {
+        return NextResponse.json(
+          { error: 'Token expired' },
+          { status: 401 }
+        )
+      }
       return NextResponse.json(
         { error: 'Invalid token' },
         { status: 401 }
